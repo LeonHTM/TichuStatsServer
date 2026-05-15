@@ -39,6 +39,26 @@ class Profile(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "name": self.name,
+            "profile_image_url": self.profile_image_url,
+            "date_added": self.date_added.isoformat() if self.date_added else None,
+            "elo": self.elo,
+            "winner_percentage": self.winner_percentage,
+            "tichu_master": self.tichu_master,
+            "visionary": self.visionary,
+            "addict": self.addict,
+            "teamplayer": self.teamplayer,
+            "announcer": self.announcer,
+            "saboteur": self.saboteur,
+            "gambler": self.gambler,
+            "big_gambler": self.big_gambler,
+            "pingu_gambler": self.pingu_gambler,
+            "bomber": self.bomber,
+        }
+    
+    def to_dictM(self):
+        return {
+            "id": self.id,
             "email": self.email,
             "name": self.name,
             "profile_image_url": self.profile_image_url,
