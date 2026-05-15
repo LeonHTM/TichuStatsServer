@@ -13,7 +13,9 @@ tichuServer = Flask(__name__)
 socketio = SocketIO(
     tichuServer,
     cors_allowed_origins="*",
-    async_mode="threading"
+    async_mode="threading",
+    ping_interval=2,
+    ping_timeout=3
 )
 
 # CONFIG
