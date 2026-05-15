@@ -64,3 +64,14 @@ class ProfileFriend(db.Model):
         profile_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
         friend_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
         created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
+
+class FriendRequest(db.Model):
+    __tablename__ = "friend_requests"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), nullable=False)
+    status = db.Column(db.Enum("pending", "accepted", "rejected"), default="pending")
+    created_at = db.Column(db.DateTime, server_default=db.func.now())

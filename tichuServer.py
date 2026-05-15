@@ -1,42 +1,50 @@
 from flask import Flask, jsonify, request, send_from_directory
-from profileLogic import db, Profile, ProfileFriend
+from flask_socketio import SocketIO
+from profileLogic import db, Profile, ProfileFriend, FriendRequest
 from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from werkzeug.utils import secure_filename
 import os
 
 
+# SERVER SETUP
 tichuServer = Flask(__name__)
 
+# SOCKET.IO SETUP
+socketio = SocketIO(
+    tichuServer,
+    cors_allowed_origins="*",
+    async_mode="threading"
+)
 
+# CONFIG
 tichuServer.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
 # MySQL config
 tichuServer.config["SQLALCHEMY_DATABASE_URI"] = (
     f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 )
-
 tichuServer.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Connect db to app
 db.init_app(tichuServer)
 
 
+# BASIC ROUTE -----------------------
 @tichuServer.route("/")
 def hello_world():
     return "<p>Tichu Server!</p>"
 
-#ALL PROFILES
+
+# PROFILES -----------------------
 @tichuServer.route("/profiles", methods=["GET"])
 def get_profiles():
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 
-#CREATE PROFILE
+
 @tichuServer.route("/add_profile", methods=["POST"])
 def create_profile():
     data = request.get_json()
@@ -70,26 +78,33 @@ def create_profile():
     db.session.add(new_profile)
     db.session.commit()
 
-    return jsonify(new_profile.to_dict()), 201
+    payload = new_profile.to_dict()
+    socketio.emit("profile_created", payload)
 
-#DELETE PROFILE
+    return jsonify(payload), 201
+
+
 @tichuServer.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
 def delete_profile(profile_id):
     profile = Profile.query.get(profile_id)
-    
+
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
     db.session.delete(profile)
     db.session.commit()
-    
+
+    socketio.emit("profile_deleted", {"id": profile_id})
+
     return jsonify({"message": f"Profile {profile_id} deleted"}), 200
 
-#SHOW FRIENDSHIPS
+
+# FRIENDSHIPS -----------------------
 @tichuServer.route("/friends/<int:profile_id>/", methods=["GET"])
 def get_friends(profile_id):
     friendships = ProfileFriend.query.filter(
-        (ProfileFriend.profile_id == profile_id) | (ProfileFriend.friend_id == profile_id)
+        (ProfileFriend.profile_id == profile_id) |
+        (ProfileFriend.friend_id == profile_id)
     ).all()
 
     friend_ids = [
@@ -101,7 +116,7 @@ def get_friends(profile_id):
 
     return jsonify([p.to_dict() for p in friends])
 
-#ADD FRIENDSHIP
+
 @tichuServer.route("/add_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["POST"])
 def add_friend(profile_id, friend_id):
     if profile_id == friend_id:
@@ -123,14 +138,21 @@ def add_friend(profile_id, friend_id):
     db.session.add(friendship)
     db.session.commit()
 
-    return jsonify({"message": f"{profile.name} and {friend.name} are now friends"}), 201
+    socketio.emit("friendship_added", {
+        "profile_id": profile_id,
+        "friend_id": friend_id
+    })
+
+    return jsonify({"message": "Friendship created"}), 201
 
 
-@tichuServer.route("/delete_firendship/<int:profile_id>/friends/<int:friend_id>", methods=["DELETE"])
+@tichuServer.route("/delete_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["DELETE"])
 def remove_friend(profile_id, friend_id):
     friendship = ProfileFriend.query.filter(
-        ((ProfileFriend.profile_id == profile_id) & (ProfileFriend.friend_id == friend_id)) |
-        ((ProfileFriend.profile_id == friend_id) & (ProfileFriend.friend_id == profile_id))
+        ((ProfileFriend.profile_id == profile_id) &
+         (ProfileFriend.friend_id == friend_id)) |
+        ((ProfileFriend.profile_id == friend_id) &
+         (ProfileFriend.friend_id == profile_id))
     ).first()
 
     if not friendship:
@@ -139,12 +161,15 @@ def remove_friend(profile_id, friend_id):
     db.session.delete(friendship)
     db.session.commit()
 
+    socketio.emit("friendship_removed", {
+        "profile_id": profile_id,
+        "friend_id": friend_id
+    })
+
     return jsonify({"message": "Friendship removed"}), 200
 
 
-
-
-#SAVE PFP
+# PROFILE IMAGE -----------------------
 @tichuServer.route("/add_image/<int:profile_id>/", methods=["POST"])
 def upload_profile_image(profile_id):
     profile = Profile.query.get(profile_id)
@@ -159,27 +184,105 @@ def upload_profile_image(profile_id):
     if not allowed_file(file.filename):
         return jsonify({"error": "File type not allowed"}), 400
 
-    filename = secure_filename(f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}")
+    filename = secure_filename(
+        f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}"
+    )
     filepath = os.path.join(tichuServer.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
     profile.profile_image_url = filepath
     db.session.commit()
 
+    payload = {
+        "profile_id": profile_id,
+        "image_url": filepath
+    }
+    socketio.emit("profile_image_updated", payload)
+
     return jsonify({"message": "Image uploaded", "path": filepath}), 200
 
-#SHOW PFP
+
 @tichuServer.route("/uploads/profile_images/<filename>", methods=["GET"])
 def serve_image(filename):
     return send_from_directory(tichuServer.config["UPLOAD_FOLDER"], filename)
 
 
+# FRIEND REQUESTS -----------------------
+@tichuServer.route("/add_request/<int:sender_id>/request/<int:receiver_id>", methods=["POST"])
+def send_friend_request(sender_id, receiver_id):
+    if sender_id == receiver_id:
+        return jsonify({"error": "Cannot request yourself"}), 400
+
+    existing = FriendRequest.query.filter_by(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        status="pending"
+    ).first()
+
+    if existing:
+        return jsonify({"error": "Request already sent"}), 409
+
+    req = FriendRequest(sender_id=sender_id, receiver_id=receiver_id)
+    db.session.add(req)
+    db.session.commit()
+
+    payload = {
+        "id": req.id,
+        "sender_id": sender_id,
+        "receiver_id": receiver_id
+    }
+    socketio.emit("friend_request_sent", payload)
+
+    return jsonify({"message": "Friend request sent"}), 201
 
 
+@tichuServer.route("/manage_requests/<int:request_id>", methods=["PATCH"])
+def respond_to_request(request_id):
+    data = request.get_json()
+    action = data.get("action")
+
+    if action not in ["accepted", "rejected"]:
+        return jsonify({"error": "Invalid action"}), 400
+
+    freq = FriendRequest.query.get(request_id)
+    if not freq:
+        return jsonify({"error": "Request not found"}), 404
+
+    freq.status = action
+
+    if action == "accepted":
+        friendship = ProfileFriend(
+            profile_id=freq.sender_id,
+            friend_id=freq.receiver_id
+        )
+        db.session.add(friendship)
+
+    db.session.commit()
+
+    socketio.emit("friend_request_updated", {
+        "request_id": request_id,
+        "status": action,
+        "sender_id": freq.sender_id,
+        "receiver_id": freq.receiver_id
+    })
+
+    return jsonify({"message": f"Request {action}"}), 200
 
 
+@tichuServer.route("/requests/<int:profile_id>/", methods=["GET"])
+def get_requests(profile_id):
+    reqs = FriendRequest.query.filter_by(
+        receiver_id=profile_id,
+        status="pending"
+    ).all()
+
+    return jsonify([{
+        "id": r.id,
+        "sender_id": r.sender_id,
+        "created_at": r.created_at.isoformat()
+    } for r in reqs]), 200
 
 
+# RUN SERVER -----------------------
 if __name__ == "__main__":
-    tichuServer.run(debug=True, port=5001)
-
+    socketio.run(tichuServer, debug=True, host="0.0.0.0", allow_unsafe_werkzeug=True)
