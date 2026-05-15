@@ -4,3 +4,4 @@ tichuEnv/
 config.py
 .DS_Store
 uploads/
+shell.nix
