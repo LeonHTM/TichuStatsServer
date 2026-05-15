@@ -46,6 +46,18 @@ def get_profiles():
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 
+# PROFILES/STATS-----------------------
+@tichuServer.route("/profilesstats", methods=["GET"])
+def get_profilesstats():
+    profiles = Profile.query.all()
+    return jsonify([p.to_dict_stats() for p in profiles])
+
+# PROFILES/SIMPLE-----------------------
+@tichuServer.route("/profilessimple", methods=["GET"])
+def get_profilessimple():
+    profiles = Profile.query.all()
+    return jsonify([p.to_dict_simple() for p in profiles])
+
 
 @tichuServer.route("/add_profile", methods=["POST"])
 def create_profile():

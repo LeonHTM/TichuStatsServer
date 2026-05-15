@@ -57,6 +57,32 @@ class Profile(db.Model):
             "bomber": self.bomber,
         }
     
+    def to_dict_simple(self):
+         return{
+            "id": self.id,
+            "name": self.name,
+            "profile_image_url": self.profile_image_url,
+            "elo": self.elo,
+         }
+    
+    def to_dict_stats(self):
+         return{
+            "id": self.id,
+            "name": self.name,
+            "elo": self.elo,
+            "winner_percentage": self.winner_percentage,
+            "tichu_master": self.tichu_master,
+            "visionary": self.visionary,
+            "addict": self.addict,
+            "teamplayer": self.teamplayer,
+            "announcer": self.announcer,
+            "saboteur": self.saboteur,
+            "gambler": self.gambler,
+            "big_gambler": self.big_gambler,
+            "pingu_gambler": self.pingu_gambler,
+            "bomber": self.bomber,
+         }
+    
     
 class ProfileFriend(db.Model):
         __tablename__ = "profile_friends"
