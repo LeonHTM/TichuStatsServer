@@ -2,3 +2,5 @@
 __pycache__/
 tichuEnv/
 config.py
+.DS_Store
+uploads/

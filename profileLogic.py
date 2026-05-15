@@ -14,7 +14,6 @@ class Profile(db.Model):
 
     profile_image_url = db.Column(db.String(500), nullable=True)
 
-    is_friend = db.Column(db.Boolean, default=False)
     date_added = db.Column(db.DateTime, nullable=True)
 
     # Game Stats
@@ -43,7 +42,6 @@ class Profile(db.Model):
             "email": self.email,
             "name": self.name,
             "profile_image_url": self.profile_image_url,
-            "is_friend": self.is_friend,
             "date_added": self.date_added.isoformat() if self.date_added else None,
             "elo": self.elo,
             "winner_percentage": self.winner_percentage,
@@ -58,3 +56,11 @@ class Profile(db.Model):
             "pingu_gambler": self.pingu_gambler,
             "bomber": self.bomber,
         }
+    
+    
+class ProfileFriend(db.Model):
+        __tablename__ = "profile_friends"
+
+        profile_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
+        friend_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
+        created_at = db.Column(db.DateTime, server_default=db.func.now())

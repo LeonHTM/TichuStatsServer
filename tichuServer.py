@@ -1,8 +1,19 @@
-from flask import Flask, jsonify
-from profileLogic import db, Profile
-from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME
+from flask import Flask, jsonify, request, send_from_directory
+from profileLogic import db, Profile, ProfileFriend
+from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from werkzeug.utils import secure_filename
+import os
+
 
 tichuServer = Flask(__name__)
+
+
+tichuServer.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # MySQL config
 tichuServer.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -17,14 +28,158 @@ db.init_app(tichuServer)
 
 @tichuServer.route("/")
 def hello_world():
-    return "<p>Hello, World!</p>"
+    return "<p>Tichu Server!</p>"
 
-
+#ALL PROFILES
 @tichuServer.route("/profiles", methods=["GET"])
 def get_profiles():
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 
+#CREATE PROFILE
+@tichuServer.route("/add_profile", methods=["POST"])
+def create_profile():
+    data = request.get_json()
+
+    if not data or not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+
+    existing = Profile.query.filter_by(email=data["email"]).first()
+    if existing:
+        return jsonify({"error": "Profile with this email already exists"}), 409
+
+    new_profile = Profile(
+        email=data["email"],
+        name=data.get("name"),
+        profile_image_url=data.get("profile_image_url"),
+        date_added=data.get("date_added"),
+        elo=data.get("elo"),
+        winner_percentage=data.get("winner_percentage", 0),
+        tichu_master=data.get("tichu_master", 0),
+        visionary=data.get("visionary", 0),
+        addict=data.get("addict", 0),
+        teamplayer=data.get("teamplayer", 0),
+        announcer=data.get("announcer", 0),
+        saboteur=data.get("saboteur", 0),
+        gambler=data.get("gambler", 0),
+        big_gambler=data.get("big_gambler", 0),
+        pingu_gambler=data.get("pingu_gambler", 0),
+        bomber=data.get("bomber", 0),
+    )
+
+    db.session.add(new_profile)
+    db.session.commit()
+
+    return jsonify(new_profile.to_dict()), 201
+
+#DELETE PROFILE
+@tichuServer.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
+def delete_profile(profile_id):
+    profile = Profile.query.get(profile_id)
+    
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    db.session.delete(profile)
+    db.session.commit()
+    
+    return jsonify({"message": f"Profile {profile_id} deleted"}), 200
+
+#SHOW FRIENDSHIPS
+@tichuServer.route("/friends/<int:profile_id>/", methods=["GET"])
+def get_friends(profile_id):
+    friendships = ProfileFriend.query.filter(
+        (ProfileFriend.profile_id == profile_id) | (ProfileFriend.friend_id == profile_id)
+    ).all()
+
+    friend_ids = [
+        f.friend_id if f.profile_id == profile_id else f.profile_id
+        for f in friendships
+    ]
+
+    friends = Profile.query.filter(Profile.id.in_(friend_ids)).all()
+
+    return jsonify([p.to_dict() for p in friends])
+
+#ADD FRIENDSHIP
+@tichuServer.route("/add_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["POST"])
+def add_friend(profile_id, friend_id):
+    if profile_id == friend_id:
+        return jsonify({"error": "A profile cannot be friends with itself"}), 400
+
+    profile = Profile.query.get(profile_id)
+    friend = Profile.query.get(friend_id)
+
+    if not profile or not friend:
+        return jsonify({"error": "One or both profiles not found"}), 404
+
+    existing = ProfileFriend.query.filter_by(
+        profile_id=profile_id, friend_id=friend_id
+    ).first()
+    if existing:
+        return jsonify({"error": "Already friends"}), 409
+
+    friendship = ProfileFriend(profile_id=profile_id, friend_id=friend_id)
+    db.session.add(friendship)
+    db.session.commit()
+
+    return jsonify({"message": f"{profile.name} and {friend.name} are now friends"}), 201
+
+
+@tichuServer.route("/delete_firendship/<int:profile_id>/friends/<int:friend_id>", methods=["DELETE"])
+def remove_friend(profile_id, friend_id):
+    friendship = ProfileFriend.query.filter(
+        ((ProfileFriend.profile_id == profile_id) & (ProfileFriend.friend_id == friend_id)) |
+        ((ProfileFriend.profile_id == friend_id) & (ProfileFriend.friend_id == profile_id))
+    ).first()
+
+    if not friendship:
+        return jsonify({"error": "Friendship not found"}), 404
+
+    db.session.delete(friendship)
+    db.session.commit()
+
+    return jsonify({"message": "Friendship removed"}), 200
+
+
+
+
+#SAVE PFP
+@tichuServer.route("/add_image/<int:profile_id>/", methods=["POST"])
+def upload_profile_image(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+
+    file = request.files["image"]
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed"}), 400
+
+    filename = secure_filename(f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}")
+    filepath = os.path.join(tichuServer.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+
+    profile.profile_image_url = filepath
+    db.session.commit()
+
+    return jsonify({"message": "Image uploaded", "path": filepath}), 200
+
+#SHOW PFP
+@tichuServer.route("/uploads/profile_images/<filename>", methods=["GET"])
+def serve_image(filename):
+    return send_from_directory(tichuServer.config["UPLOAD_FOLDER"], filename)
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
-    tichuServer.run(debug=True)
+    tichuServer.run(debug=True, port=5001)
+
