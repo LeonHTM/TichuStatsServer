@@ -52,10 +52,12 @@ def get_profilesM():
     return jsonify([p.to_dictM() for p in profiles])
 
 # PROFILES/STATS-----------------------
-@tichuServer.route("/profilesstats", methods=["GET"])
-def get_profilesstats():
-    profiles = Profile.query.all()
-    return jsonify([p.to_dict_stats() for p in profiles])
+@tichuServer.route("/profilesstats/<int:profile_id>", methods=["GET"])
+def get_profilesstats(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+    return jsonify(profile.to_dict_stats())
 
 # PROFILES/SIMPLE-----------------------
 @tichuServer.route("/profilessimple", methods=["GET"])
@@ -126,14 +128,16 @@ def get_friends(profile_id):
         (ProfileFriend.friend_id == profile_id)
     ).all()
 
-    friend_ids = [
-        f.friend_id if f.profile_id == profile_id else f.profile_id
-        for f in friendships
-    ]
+    result = []
+    for f in friendships:
+        friend_id = f.friend_id if f.profile_id == profile_id else f.profile_id
+        friend_profile = Profile.query.get(friend_id)
+        if friend_profile:
+            data = friend_profile.to_dict()
+            data["friends_since"] = f.created_at.isoformat() if f.created_at else None
+            result.append(data)
 
-    friends = Profile.query.filter(Profile.id.in_(friend_ids)).all()
-
-    return jsonify([p.to_dict() for p in friends])
+    return jsonify(result)
 
 
 @tichuServer.route("/add_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["POST"])
