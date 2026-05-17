@@ -17,7 +17,7 @@ class Profile(db.Model):
     date_added = db.Column(db.DateTime, nullable=True)
 
     # Game Stats
-    elo = db.Column(db.Integer, nullable=True)
+    elo = db.Column(db.Integer, default=1000)
 
     winner_percentage = db.Column(db.Integer, default=0)
 

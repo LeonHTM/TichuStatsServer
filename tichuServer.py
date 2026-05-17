@@ -75,34 +75,19 @@ def create_profile():
 
     existing = Profile.query.filter_by(email=data["email"]).first()
     if existing:
-        return jsonify({"error": "Profile with this email already exists"}), 409
+        return jsonify({"id": existing.id}), 200
 
     new_profile = Profile(
         email=data["email"],
-        name=data.get("name"),
-        profile_image_url=data.get("profile_image_url"),
-        date_added=data.get("date_added"),
-        elo=data.get("elo"),
-        winner_percentage=data.get("winner_percentage", 0),
-        tichu_master=data.get("tichu_master", 0),
-        visionary=data.get("visionary", 0),
-        addict=data.get("addict", 0),
-        teamplayer=data.get("teamplayer", 0),
-        announcer=data.get("announcer", 0),
-        saboteur=data.get("saboteur", 0),
-        gambler=data.get("gambler", 0),
-        big_gambler=data.get("big_gambler", 0),
-        pingu_gambler=data.get("pingu_gambler", 0),
-        bomber=data.get("bomber", 0),
+        name=data.get("name")
     )
 
     db.session.add(new_profile)
     db.session.commit()
 
-    payload = new_profile.to_dict()
-    socketio.emit("profile_created", payload)
+    socketio.emit("profile_created", {"id": new_profile.id, "email": new_profile.email, "name": new_profile.name})
 
-    return jsonify(payload), 201
+    return jsonify({"id": new_profile.id}), 201
 
 
 @tichuServer.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
@@ -112,6 +97,11 @@ def delete_profile(profile_id):
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
+    if profile.profile_image_url:
+        if os.path.exists(profile.profile_image_url):
+            os.remove(profile.profile_image_url)
+
+
     db.session.delete(profile)
     db.session.commit()
 
@@ -119,6 +109,30 @@ def delete_profile(profile_id):
 
     return jsonify({"message": f"Profile {profile_id} deleted"}), 200
 
+
+#USERNAME----------------
+@tichuServer.route("/check_username/<string:username>", methods=["GET"])
+def check_username(username):
+    existing = Profile.query.filter_by(name=username).first()
+    return jsonify({"available": existing is None})
+
+@tichuServer.route("/update_username/<int:profile_id>", methods=["PATCH"])
+def update_username(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    data = request.get_json()
+    name = data.get("name")
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+
+    profile.name = name 
+    db.session.commit()
+
+    socketio.emit("username_updated", {"profile_id": profile_id, "name": name})
+
+    return jsonify(profile.to_dict()), 200
 
 # FRIENDSHIPS -----------------------
 @tichuServer.route("/friends/<int:profile_id>/", methods=["GET"])
