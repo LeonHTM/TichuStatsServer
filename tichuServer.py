@@ -247,8 +247,17 @@ def serve_image(filename):
 # FRIEND REQUESTS -----------------------
 @tichuServer.route("/add_request/<int:sender_id>/request/<int:receiver_id>", methods=["POST"])
 def send_friend_request(sender_id, receiver_id):
+
     if sender_id == receiver_id:
         return jsonify({"error": "Cannot request yourself"}), 400
+
+    sender = Profile.query.get(sender_id)
+    receiver = Profile.query.get(receiver_id)
+
+    if sender is None or receiver is None:
+        return jsonify({
+            "error": "Invalid sender or receiver (profile does not exist)"
+        }), 404
 
     existing = FriendRequest.query.filter_by(
         sender_id=sender_id,
@@ -259,48 +268,106 @@ def send_friend_request(sender_id, receiver_id):
     if existing:
         return jsonify({"error": "Request already sent"}), 409
 
-    req = FriendRequest(sender_id=sender_id, receiver_id=receiver_id)
-    db.session.add(req)
-    db.session.commit()
+    # Check if the other person has already sent a request to this sender
+    mutual_request = FriendRequest.query.filter_by(
+        sender_id=receiver_id,
+        receiver_id=sender_id,
+        status="pending"
+    ).first()
 
-    payload = {
+    try:
+        if mutual_request:
+            # Auto-accept: delete both requests and create friendship
+            db.session.delete(mutual_request)
+
+            already_friends = ProfileFriend.query.filter_by(
+                profile_id=sender_id,
+                friend_id=receiver_id
+            ).first()
+
+            if not already_friends:
+                friendship = ProfileFriend(
+                    profile_id=sender_id,
+                    friend_id=receiver_id
+                )
+                db.session.add(friendship)
+
+            db.session.commit()
+
+            socketio.emit("friend_request_updated", {
+                "sender_id": sender_id,
+                "receiver_id": receiver_id,
+                "status": "accepted"
+            })
+
+            return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
+
+        else:
+            req = FriendRequest(
+                sender_id=sender_id,
+                receiver_id=receiver_id,
+                status="pending"
+            )
+            db.session.add(req)
+            db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+    socketio.emit("friend_request_sent", {
         "id": req.id,
         "sender_id": sender_id,
         "receiver_id": receiver_id
-    }
-    socketio.emit("friend_request_sent", payload)
+    })
 
     return jsonify({"message": "Friend request sent"}), 201
 
 
-@tichuServer.route("/manage_requests/<int:request_id>", methods=["PATCH"])
-def respond_to_request(request_id):
+@tichuServer.route("/manage_requests/<int:receiver_id>/from/<int:sender_id>", methods=["PATCH"])
+def respond_to_request(receiver_id, sender_id):
+
     data = request.get_json()
     action = data.get("action")
 
     if action not in ["accepted", "rejected"]:
         return jsonify({"error": "Invalid action"}), 400
 
-    freq = FriendRequest.query.get(request_id)
+    freq = FriendRequest.query.filter_by(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        status="pending"
+    ).first()
+
     if not freq:
-        return jsonify({"error": "Request not found"}), 404
+        return jsonify({"error": "Friend request not found"}), 404
 
-    freq.status = action
+    try:
+        if action == "accepted":
+            existing_friendship = ProfileFriend.query.filter_by(
+                profile_id=sender_id,
+                friend_id=receiver_id
+            ).first()
 
-    if action == "accepted":
-        friendship = ProfileFriend(
-            profile_id=freq.sender_id,
-            friend_id=freq.receiver_id
-        )
-        db.session.add(friendship)
+            if not existing_friendship:
+                friendship = ProfileFriend(
+                    profile_id=sender_id,
+                    friend_id=receiver_id
+                )
+                db.session.add(friendship)
 
-    db.session.commit()
+        # delete request in both cases
+        db.session.delete(freq)
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
 
     socketio.emit("friend_request_updated", {
-        "request_id": request_id,
-        "status": action,
-        "sender_id": freq.sender_id,
-        "receiver_id": freq.receiver_id
+        "sender_id": sender_id,
+        "receiver_id": receiver_id,
+        "status": action
     })
 
     return jsonify({"message": f"Request {action}"}), 200
@@ -319,6 +386,17 @@ def get_requests(profile_id):
         "created_at": r.created_at.isoformat()
     } for r in reqs]), 200
 
+@tichuServer.route("/sent_requests/<int:profile_id>/", methods=["GET"])
+def get_sent_requests(profile_id):
+    reqs = FriendRequest.query.filter_by(
+        sender_id=profile_id,
+        status="pending"
+    ).all()
+
+    return jsonify([{
+        "id": r.id,
+        "receiver_id": r.receiver_id
+    } for r in reqs]), 200
 
 # RUN SERVER -----------------------
 if __name__ == "__main__":
