@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from profileLogic import db, Profile, ProfileFriend, FriendRequest
-from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, BASE_URL
 from werkzeug.utils import secure_filename
 import os
 from notificationLogic import *
@@ -253,6 +253,17 @@ def upload_profile_image(profile_id):
 def serve_image(filename):
     return send_from_directory(tichuServer.config["UPLOAD_FOLDER"], filename)
 
+@tichuServer.route("/logout/<int:profile_id>", methods=["POST"])
+def logout(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    profile.device_token = None
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+
 
 # FRIEND REQUESTS -----------------------
 @tichuServer.route("/add_request/<int:sender_id>/request/<int:receiver_id>", methods=["POST"])
@@ -276,7 +287,7 @@ def send_friend_request(sender_id, receiver_id):
     ).first()
 
     if existing:
-        return jsonify({"error": "Request already sent"}), 409
+        return jsonify({"error": "Request already sent"}), 469
 
     # Check if the other person has already sent a request to this sender
     mutual_request = FriendRequest.query.filter_by(
@@ -312,10 +323,14 @@ def send_friend_request(sender_id, receiver_id):
 
             # Notify receiver that they are now friends
             if receiver.device_token:
+                image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
+                print(f"Sending accepted notification to {receiver.name} with image_url: {image_url}")
                 send_push_notification(
                     device_token=receiver.device_token,
                     title="Friend Request Accepted",
-                    body=f"You and {sender.name} are now friends"
+                    body=f"You and {sender.name} are now friends",
+                    sender_name=sender.name,
+                    image_url=image_url
                 )
 
             return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
@@ -341,10 +356,14 @@ def send_friend_request(sender_id, receiver_id):
 
     # Notify receiver of the friend request
     if receiver.device_token:
+        image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
+        print(f"Sending request notification to {receiver.name} with image_url: {image_url}")
         send_push_notification(
             device_token=receiver.device_token,
             title="New Friend Request",
-            body=f"{sender.name} sent you a friend request"
+            body=f"{sender.name} sent you a friend request",
+            sender_name=sender.name,
+            image_url=image_url
         )
 
     return jsonify({"message": "Friend request sent"}), 201
