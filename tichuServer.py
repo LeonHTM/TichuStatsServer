@@ -101,7 +101,6 @@ def delete_profile(profile_id):
         if os.path.exists(profile.profile_image_url):
             os.remove(profile.profile_image_url)
 
-
     db.session.delete(profile)
     db.session.commit()
 
@@ -110,7 +109,7 @@ def delete_profile(profile_id):
     return jsonify({"message": f"Profile {profile_id} deleted"}), 200
 
 
-#USERNAME----------------
+# USERNAME----------------
 @tichuServer.route("/check_username/<string:username>", methods=["GET"])
 def check_username(username):
     existing = Profile.query.filter_by(name=username).first()
@@ -127,7 +126,7 @@ def update_username(profile_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
-    profile.name = name 
+    profile.name = name
     db.session.commit()
 
     socketio.emit("username_updated", {"profile_id": profile_id, "name": name})
@@ -135,8 +134,7 @@ def update_username(profile_id):
     return jsonify(profile.to_dict()), 200
 
 
-#EMAIL----------------
-#EMAIL----------------
+# EMAIL----------------
 @tichuServer.route("/check_email/<string:email>", methods=["GET"])
 def check_email(email):
     existing = Profile.query.filter_by(email=email).first()
@@ -264,7 +262,6 @@ def logout(profile_id):
     return jsonify({"success": True}), 200
 
 
-
 # FRIEND REQUESTS -----------------------
 @tichuServer.route("/add_request/<int:sender_id>/request/<int:receiver_id>", methods=["POST"])
 def send_friend_request(sender_id, receiver_id):
@@ -295,6 +292,10 @@ def send_friend_request(sender_id, receiver_id):
         receiver_id=sender_id,
         status="pending"
     ).first()
+
+    # Stable conversation ID: always sort the two user IDs so both sides
+    # produce the same string regardless of who initiated
+    conversation_id = f"friends-{min(sender_id, receiver_id)}-{max(sender_id, receiver_id)}"
 
     try:
         if mutual_request:
@@ -330,6 +331,8 @@ def send_friend_request(sender_id, receiver_id):
                     title="Friend Request Accepted",
                     body=f"You and {sender.name} are now friends",
                     sender_name=sender.name,
+                    sender_id=str(sender_id),
+                    conversation_id=conversation_id,
                     image_url=image_url
                 )
 
@@ -363,6 +366,8 @@ def send_friend_request(sender_id, receiver_id):
             title="New Friend Request",
             body=f"{sender.name} sent you a friend request",
             sender_name=sender.name,
+            sender_id=str(sender_id),
+            conversation_id=conversation_id,
             image_url=image_url
         )
 
@@ -438,12 +443,17 @@ def send_notification(profile_id):
         return jsonify({"error": "Profile not found or no device token"}), 404
 
     data = request.get_json()
-    success = send_push_notification(
+
+    # sender_id and conversation_id are optional for manual test notifications
+    send_push_notification(
         device_token=profile.device_token,
         title=data.get("title", ""),
-        body=data.get("body", "")
+        body=data.get("body", ""),
+        sender_name=data.get("sender_name", ""),
+        sender_id=data.get("sender_id", "unknown"),
+        conversation_id=data.get("conversation_id", "default")
     )
-    return jsonify({"success": success}), 200
+    return jsonify({"success": True}), 200
 
 @tichuServer.route("/register_device/<int:profile_id>", methods=["POST"])
 def register_device(profile_id):
@@ -461,8 +471,6 @@ def register_device(profile_id):
     return jsonify({"success": True}), 200
 
 
-
-
 @tichuServer.route("/sent_requests/<int:profile_id>/", methods=["GET"])
 def get_sent_requests(profile_id):
     reqs = FriendRequest.query.filter_by(
@@ -475,8 +483,6 @@ def get_sent_requests(profile_id):
         "receiver_id": r.receiver_id
     } for r in reqs]), 200
 
-
-    
 
 # RUN SERVER -----------------------
 if __name__ == "__main__":

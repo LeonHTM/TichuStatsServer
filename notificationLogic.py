@@ -31,6 +31,8 @@ def send_push_notification(
     title: str,
     body: str,
     sender_name: str,
+    sender_id: str,
+    conversation_id: str,
     image_url: str = None,
     data: dict = {}
 ):
@@ -54,10 +56,16 @@ def send_push_notification(
             },
             "sound": "default",
             "badge": 1,
-            "mutable-content": 1
+            "mutable-content": 1,
+            # Required for Communication Notifications —
+            # tells iOS to route this to your extension as a comm notification
+            "category": "com.apple.developer.usernotifications.communication"
         },
 
+        # Picked up by the Notification Service Extension
         "sender_name": sender_name,
+        "sender_id": sender_id,
+        "conversation_id": conversation_id,
 
         **data
     }
