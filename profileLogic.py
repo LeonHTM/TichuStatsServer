@@ -32,6 +32,7 @@ class Profile(db.Model):
     big_gambler = db.Column(db.Integer, default=0)
     pingu_gambler = db.Column(db.Integer, default=0)
     bomber = db.Column(db.Integer, default=0)
+    device_token = db.Column(db.String(255))
 
     # Timestamps (optional but recommended)
     created_at = db.Column(db.DateTime, server_default=db.func.now())

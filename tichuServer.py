@@ -4,7 +4,7 @@ from profileLogic import db, Profile, ProfileFriend, FriendRequest
 from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from werkzeug.utils import secure_filename
 import os
-
+from notificationLogic import *
 
 # SERVER SETUP
 tichuServer = Flask(__name__)
@@ -133,6 +133,16 @@ def update_username(profile_id):
     socketio.emit("username_updated", {"profile_id": profile_id, "name": name})
 
     return jsonify(profile.to_dict()), 200
+
+
+#EMAIL----------------
+#EMAIL----------------
+@tichuServer.route("/check_email/<string:email>", methods=["GET"])
+def check_email(email):
+    existing = Profile.query.filter_by(email=email).first()
+    if existing:
+        return jsonify({"available": False, "id": existing.id})
+    return jsonify({"available": True, "id": None})
 
 # FRIENDSHIPS -----------------------
 @tichuServer.route("/friends/<int:profile_id>/", methods=["GET"])
@@ -300,6 +310,14 @@ def send_friend_request(sender_id, receiver_id):
                 "status": "accepted"
             })
 
+            # Notify receiver that they are now friends
+            if receiver.device_token:
+                send_push_notification(
+                    device_token=receiver.device_token,
+                    title="Friend Request Accepted",
+                    body=f"You and {sender.name} are now friends"
+                )
+
             return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
 
         else:
@@ -320,6 +338,14 @@ def send_friend_request(sender_id, receiver_id):
         "sender_id": sender_id,
         "receiver_id": receiver_id
     })
+
+    # Notify receiver of the friend request
+    if receiver.device_token:
+        send_push_notification(
+            device_token=receiver.device_token,
+            title="New Friend Request",
+            body=f"{sender.name} sent you a friend request"
+        )
 
     return jsonify({"message": "Friend request sent"}), 201
 
@@ -386,6 +412,38 @@ def get_requests(profile_id):
         "created_at": r.created_at.isoformat()
     } for r in reqs]), 200
 
+@tichuServer.route("/send_notification/<int:profile_id>", methods=["POST"])
+def send_notification(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile or not profile.device_token:
+        return jsonify({"error": "Profile not found or no device token"}), 404
+
+    data = request.get_json()
+    success = send_push_notification(
+        device_token=profile.device_token,
+        title=data.get("title", ""),
+        body=data.get("body", "")
+    )
+    return jsonify({"success": success}), 200
+
+@tichuServer.route("/register_device/<int:profile_id>", methods=["POST"])
+def register_device(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    data = request.get_json()
+    device_token = data.get("device_token")
+    if not device_token:
+        return jsonify({"error": "device_token is required"}), 400
+
+    profile.device_token = device_token
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+
+
+
 @tichuServer.route("/sent_requests/<int:profile_id>/", methods=["GET"])
 def get_sent_requests(profile_id):
     reqs = FriendRequest.query.filter_by(
@@ -397,6 +455,9 @@ def get_sent_requests(profile_id):
         "id": r.id,
         "receiver_id": r.receiver_id
     } for r in reqs]), 200
+
+
+    
 
 # RUN SERVER -----------------------
 if __name__ == "__main__":
