@@ -36,9 +36,7 @@ def send_push_notification(
     image_url: str = None,
     data: dict = {}
 ):
-
     token = get_apns_token()
-
     url = f"https://{APNS_HOST}/3/device/{device_token}"
 
     headers = {
@@ -46,6 +44,7 @@ def send_push_notification(
         "apns-topic": APNS_BUNDLE_ID,
         "apns-push-type": "alert",
         "apns-priority": "10",
+        "apns-collapse-id": f"friend-request-{sender_id}",  # ← collapses duplicate notifications
     }
 
     payload = {
@@ -57,15 +56,12 @@ def send_push_notification(
             "sound": "default",
             "badge": 1,
             "mutable-content": 1,
-            # Required for Communication Notifications —
-            # tells iOS to route this to your extension as a comm notification
             "category": "com.apple.developer.usernotifications.communication"
         },
-
-        # Picked up by the Notification Service Extension
         "sender_name": sender_name,
         "sender_id": sender_id,
         "conversation_id": conversation_id,
+        "notification_id": f"friend-request-{sender_id}",  # ← so iOS side knows what to remove
 
         **data
     }
@@ -74,13 +70,7 @@ def send_push_notification(
         payload["image_url"] = image_url
 
     with httpx.Client(http2=True) as client:
-        response = client.post(
-            url,
-            json=payload,
-            headers=headers
-        )
-
+        response = client.post(url, json=payload, headers=headers)
         print(f"APNs status: {response.status_code}")
         print(f"APNs response: {response.text}")
-
         return response.status_code == 200

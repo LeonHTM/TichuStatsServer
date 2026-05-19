@@ -188,6 +188,22 @@ def add_friend(profile_id, friend_id):
         "friend_id": friend_id
     })
 
+    conversation_id = f"friends-{min(profile_id, friend_id)}-{max(profile_id, friend_id)}"
+
+    # Notify receiver that they are now friends
+    if friend.device_token:
+                image_url = f"{BASE_URL}/{profile.profile_image_url}" if profile.profile_image_url else None
+                print(f"Sending accepted notification to {friend.name} with image_url: {image_url}")
+                send_push_notification(
+                    device_token=friend.device_token,
+                    title="Friend Request Accepted",
+                    body=f"You and {profile.name} are now friends",
+                    sender_name=profile.name,
+                    sender_id=str(profile_id),
+                    conversation_id=conversation_id,
+                    image_url=image_url
+                )
+
     return jsonify({"message": "Friendship created"}), 201
 
 
@@ -335,6 +351,19 @@ def send_friend_request(sender_id, receiver_id):
                     conversation_id=conversation_id,
                     image_url=image_url
                 )
+            """
+            if sender.device_token:
+                image_url = f"{BASE_URL}/{receiver.profile_image_url}" if receiver.profile_image_url else None
+                print(f"Sending accepted notification to {sender.name} with image_url: {image_url}")
+                send_push_notification(
+                    device_token=sender.device_token,
+                    title="Friend Request Accepted",
+                    body=f"You and {receiver.name} are now friends",
+                    sender_name=receiver.name,
+                    sender_id=str(receiver_id),
+                    conversation_id=conversation_id,
+                    image_url=image_url
+                )"""
 
             return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
 
@@ -392,6 +421,9 @@ def respond_to_request(receiver_id, sender_id):
     if not freq:
         return jsonify({"error": "Friend request not found"}), 404
 
+    sender = Profile.query.get(sender_id)
+    receiver = Profile.query.get(receiver_id)
+
     try:
         if action == "accepted":
             existing_friendship = ProfileFriend.query.filter_by(
@@ -420,8 +452,21 @@ def respond_to_request(receiver_id, sender_id):
         "status": action
     })
 
-    return jsonify({"message": f"Request {action}"}), 200
+    # Notify the original sender that their request was accepted
+    if action == "accepted" and sender and sender.device_token:
+        conversation_id = f"friends-{min(sender_id, receiver_id)}-{max(sender_id, receiver_id)}"
+        image_url = f"{BASE_URL}/{receiver.profile_image_url}" if receiver and receiver.profile_image_url else None
+        send_push_notification(
+            device_token=sender.device_token,
+            title="Friend Request Accepted",
+            body=f"{receiver.name} accepted your friend request",
+            sender_name=receiver.name,
+            sender_id=str(receiver_id),
+            conversation_id=conversation_id,
+            image_url=image_url
+        )
 
+    return jsonify({"message": f"Request {action}"}), 200
 
 @tichuServer.route("/requests/<int:profile_id>/", methods=["GET"])
 def get_requests(profile_id):
