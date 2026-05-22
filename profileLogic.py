@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from extensions import db, socketio
 
 
 class Profile(db.Model):
