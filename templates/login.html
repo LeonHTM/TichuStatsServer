@@ -12,15 +12,17 @@
 
   <!-- Global nav -->
   <nav>
-  <img src="{{ url_for('static', filename='TichuIconV1-iOS-Default-1024x1024@1x.png') }}" alt="Tichu" class="nav-logo" />
+    <a href="/" class="nav-title">
+      Tichu Dashboard
+    </a>
 </nav>
 
   <!-- Main content -->
   <main class="hero">
     <div class="card">
+      <img src="{{ url_for('static', filename='TichuIconV1-iOS-Default-1024x1024@1x.png') }}" alt="Tichu" class="error-logo" />
       <h1>Sign in</h1>
-      <p class="subtitle">Enter your password to access the Tichu dashboard.</p>
-
+  
       <!-- replace the error div and form -->
       {% if error %}
       <div class="error-msg visible">
