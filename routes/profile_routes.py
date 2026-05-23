@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, send_from_directory, current_app
+from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from profileLogic import Profile
@@ -15,17 +15,27 @@ def allowed_file(filename):
 @profile_bp.route("/profiles", methods=["GET"])
 @jwt_or_session_required
 def get_profiles():
+    # Return HTML for browsers, JSON for API clients
+    if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
+        profiles = Profile.query.all()
+        return render_template("dashboard.html", profiles=profiles)
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 
+@profile_bp.route("/dashboard", methods=["GET"])
+@jwt_or_session_required
+def dashboard():
+    profiles = Profile.query.all()
+    return render_template("dashboard.html", profiles=profiles)
+
 @profile_bp.route("/profilesM", methods=["GET"])
-@jwt_required()
+@jwt_or_session_required
 def get_profilesM():
     profiles = Profile.query.all()
     return jsonify([p.to_dictM() for p in profiles])
 
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
-@jwt_required()
+@jwt_or_session_required
 def get_profilesstats(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:

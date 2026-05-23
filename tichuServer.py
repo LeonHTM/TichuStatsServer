@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, render_template
 from flask_jwt_extended import create_access_token
 from extensions import db, socketio, jwt
 from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, JWT_KEY, SECRET_KEY, BROWSER_PASSWORD
@@ -6,6 +6,7 @@ from routes.auth_routes import auth_bp
 from routes.profile_routes import profile_bp
 from routes.friend_routes import friend_bp
 from routes.game_routes import game_bp
+from datetime import timedelta
 import os
 
 def create_app():
@@ -17,6 +18,7 @@ def create_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
     app.config["SECRET_KEY"] = SECRET_KEY
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
     db.init_app(app)
@@ -28,31 +30,34 @@ def create_app():
     app.register_blueprint(friend_bp)
     app.register_blueprint(game_bp)
 
-    @app.route("/browser-login", methods=["GET", "POST"])
-    def browser_login():
-        if request.method == "POST":
-            password = request.form.get("password")
-            if password == BROWSER_PASSWORD:
-                token = create_access_token(identity="browser")
-                session["jwt"] = token
-                return redirect("/browser")
-            return "<p>Wrong password</p>", 401
-
-        return """
-        <form method="POST">
-            <input type="password" name="password" placeholder="Password" />
-            <button type="submit">Login</button>
-        </form>
-        """
-
-    @app.route("/browser")
+    @app.route("/", methods=["GET"])
     def browser_dashboard():
-        token = session.get("jwt")
-        if not token:
-            return redirect("/browser-login")
-        return "<p>Welcome! You're authenticated.</p>"
+        if not session.get("jwt"):
+            return render_template("login.html")
+        return redirect("/dashboard")
 
-    return app  # now correctly outside the route definitions
+    @app.route("/session_check")
+    def session_check():
+        if session.get("jwt"):
+            return "", 200
+        return "", 401
+
+    @app.route("/dashlogin", methods=["POST"])
+    def browser_login():
+        password = request.form.get("password")
+        if password == BROWSER_PASSWORD:
+            session.permanent = True  # ← THIS is what makes the timeout work
+            token = create_access_token(identity="browser")
+            session["jwt"] = token
+            return redirect("/dashboard")
+        return render_template("login.html", error=True)
+
+    @app.route("/dashlogout")
+    def browser_logout():
+        session.pop("jwt", None)
+        return redirect("/")
+
+    return app
 
 
 tichuServer = create_app()

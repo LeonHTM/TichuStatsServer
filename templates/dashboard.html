@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profiles — Tichu</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1.0">
+</head>
+<body>
+
+  <nav>
+    <img src="{{ url_for('static', filename='TichuIconV1-iOS-Default-1024x1024@1x.png') }}" alt="Tichu" class="nav-logo" />
+    <a href="/dashlogout" class="nav-logout">Sign out</a>
+  </nav>
+
+  <main>
+    <h1 class="page-title">Profiles</h1>
+    <p class="page-subtitle">{{ profiles|length }} player{{ 's' if profiles|length != 1 else '' }} registered</p>
+
+    <div class="grid">
+      {% for profile in profiles %}
+      <div class="profile-card" id="card-{{ profile.id }}">
+
+        <!-- Always visible header -->
+        <div class="card-header" onclick="toggleCard(`card-{{ profile.id }}`)">
+
+          {% if profile.profile_image_url %}
+            {% set filename = profile.profile_image_url.split('/')|last %}
+            <img class="avatar" src="/uploads/profile_images/{{ filename }}" alt="{{ profile.name }}" />
+          {% else %}
+            <div class="avatar-placeholder">
+              {{ profile.name[0].upper() if profile.name else '?' }}
+            </div>
+          {% endif %}
+
+          <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
+          <div class="profile-email">
+            {{ profile.email }}
+            · ID {{ profile.id }}
+          </div>
+          <div class="profile-elo">{{ profile.elo }} ELO</div>
+
+          <div class="expand-btn">
+            Show stats
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Expandable body -->
+        <div class="card-body">
+
+          <div class="section-label">Performance</div>
+          <div class="stat-row">
+            <span class="stat-label">Win rate</span>
+            <span class="stat-value highlight">{{ profile.winner_percentage }}%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Tichu master</span>
+            <span class="stat-value">{{ profile.tichu_master }}</span>
+          </div>
+
+          <div class="section-label">Stats</div>
+          <div class="badge-row">
+            <span class="badge {% if profile.gambler > 0 %}earned{% endif %}">
+              Gambler {{ profile.gambler }}
+            </span>
+            <span class="badge {% if profile.big_gambler > 0 %}earned{% endif %}">
+              Big Gambler {{ profile.big_gambler }}
+            </span>
+            <span class="badge {% if profile.pingu_gambler > 0 %}earned{% endif %}">
+              Pingu Gambler {{ profile.pingu_gambler }}
+            </span>
+            <span class="badge {% if profile.visionary > 0 %}earned{% endif %}">
+              Visionary {{ profile.visionary }}
+            </span>
+            <span class="badge {% if profile.addict > 0 %}earned{% endif %}">
+              Addict {{ profile.addict }}
+            </span>
+            <span class="badge {% if profile.teamplayer > 0 %}earned{% endif %}">
+              Team Player {{ profile.teamplayer }}
+            </span>
+            <span class="badge {% if profile.announcer > 0 %}earned{% endif %}">
+              Announcer {{ profile.announcer }}
+            </span>
+            <span class="badge {% if profile.saboteur > 0 %}earned{% endif %}">
+              Saboteur {{ profile.saboteur }}
+            </span>
+            <span class="badge {% if profile.bomber > 0 %}earned{% endif %}">
+              Bomber {{ profile.bomber }}
+            </span>
+          </div>
+
+          <div class="meta-row">
+            {% if profile.created_at %} Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <footer>
+    Copyright &copy; 2026 Drakynem. All rights reserved.
+  </footer>
+
+  <script>
+    function toggleCard(id) {
+      const card = document.getElementById(id);
+      card.classList.toggle('open');
+      const btn = card.querySelector('.expand-btn');
+      btn.childNodes[0].textContent = card.classList.contains('open') ? 'Hide stats ' : 'Show stats ';
+    }
+  </script>
+  <script>
+  // Check session every 30 seconds
+  setInterval(async () => {
+    const res = await fetch("/session_check");
+    if (res.status === 401) {
+      window.location.href = "/";
+    }
+  }, 900000);
+</script>
+
+</body>
+</html>
