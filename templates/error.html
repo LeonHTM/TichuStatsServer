@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unauthorized — Tichu</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1.0">
+</head>
+<body>
+
+  <nav>
+    <img src="{{ url_for('static', filename='TichuIconV1-iOS-Default-1024x1024@1x.png') }}" alt="Tichu" class="nav-logo" />
+  </nav>
+
+  <main class="hero">
+    <div class="card" style="text-align: center;">
+      <img src="{{ url_for('static', filename='TichuIconV1-iOS-Default-1024x1024@1x.png') }}" alt="Tichu" class="error-logo" />
+      <h1>Access denied</h1>
+      <p class="subtitle">You don't have permission to view this page.</p>
+      <a href="/" style="
+        display: block;
+        margin-top: 24px;
+        height: 50px;
+        line-height: 50px;
+        background: var(--primary);
+        color: #fff;
+        border-radius: 980px;
+        font-size: 17px;
+        text-decoration: none;
+        transition: background 0.15s;
+      ">Go to login</a>
+    </div>
+  </main>
+
+  <footer>
+    Copyright &copy; 2026 Drakynem. All rights reserved.
+  </footer>
+
+</body>
+</html>

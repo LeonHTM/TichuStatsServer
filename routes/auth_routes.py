@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token
+from flask import Blueprint, jsonify, request, session, redirect, render_template
+from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from profileLogic import Profile
+from functools import wraps
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -19,28 +20,24 @@ def login():
     token = create_access_token(identity=str(profile.id))
     return jsonify({"token": token, "id": profile.id}), 200
 
-from functools import wraps
-from flask import session, jsonify,redirect
-from flask_jwt_extended import verify_jwt_in_request
 
 def jwt_or_session_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        # Try JWT header first (SwiftUI app)
+        # SwiftUI app — JWT header
         try:
             verify_jwt_in_request()
             return fn(*args, **kwargs)
         except Exception:
             pass
 
-        # Fall back to session cookie (browser)
+        # Browser — session cookie
         if session.get("jwt"):
             return fn(*args, **kwargs)
 
-        # No valid auth — redirect browsers to login, return 401 for API
-        from flask import request
+        # No valid auth
         if request.accept_mimetypes.accept_html:
-            return redirect("/")
-        return jsonify({"error": "Unauthorized"}), 401
+            return render_template("error.html"), 401  # ← error page for browsers
+        return jsonify({"error": "Unauthorized"}), 401  # ← JSON for API clients
 
     return wrapper
