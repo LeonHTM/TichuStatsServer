@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profiles — Tichu</title>
   <link rel="stylesheet" href="/static/styles.css?v=1.0">
+  <link rel="icon" href="{{ url_for('static', filename='TichuIconV1-iOS-Default-128x128@1x.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='TichuIconV1-iOS-Default-128x128@1x.png') }}">
 </head>
 <body>
 
@@ -122,6 +124,20 @@
       window.location.href = "/";
     }
   }, 900000);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
+<script>
+  const socket = io();
+
+  // Reload the page when any relevant event fires
+  socket.on("profile_created",       () => location.reload());
+  socket.on("profile_deleted",       () => location.reload());
+  socket.on("username_updated",      () => location.reload());
+  socket.on("profile_image_updated", () => location.reload());
+  socket.on("friendship_added",      () => location.reload());
+  socket.on("friendship_removed",    () => location.reload());
+  socket.on("friend_request_sent",   () => location.reload());
+  socket.on("friend_request_updated",() => location.reload());
 </script>
 
 </body>
