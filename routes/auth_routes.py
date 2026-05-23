@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, session, redirect, render_template
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
-from profileLogic import Profile
+from logic.profileLogic import Profile
 from functools import wraps
 
 auth_bp = Blueprint("auth", __name__)

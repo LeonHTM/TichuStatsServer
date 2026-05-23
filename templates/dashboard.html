@@ -294,40 +294,44 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
-  <script>
-    const socket = io();
-    socket.on("profile_created",        () => location.reload());
-    socket.on("profile_deleted",        () => location.reload());
-    socket.on("username_updated",       () => location.reload());
-    socket.on("profile_image_updated",  () => location.reload());
-    socket.on("friendship_added",       () => location.reload());
-    socket.on("friendship_removed",     () => location.reload());
-    socket.on("friend_request_sent",    () => location.reload());
-    socket.on("friend_request_updated", () => location.reload());
+<script>
+  const socket = io();
+  socket.on("profile_created",        () => location.reload());
+  socket.on("profile_deleted",        () => location.reload());
+  socket.on("username_updated",       () => location.reload());
+  socket.on("profile_image_updated",  () => location.reload());
+  socket.on("friendship_added",       () => location.reload());
+  socket.on("friendship_removed",     () => location.reload());
+  socket.on("friend_request_sent",    () => location.reload());
+  socket.on("friend_request_updated", () => location.reload());
 
-    setInterval(async () => {
-      const res = await fetch("/session_check");
-      if (res.status === 401) window.location.href = "/";
-    }, 30000);
-  </script>
-  <script>
-    let secondsLeft = {{ session_seconds }};
+  setInterval(async () => {
+    const res = await fetch("/session_check");
+    if (res.status === 401) window.location.href = "/";
+  }, 30000);
+</script>
+<script>
+  const expiresAt = new Date(Date.now() + {{ session_seconds }} * 1000);
+  let sessionExpired = false;
 
-    function updateTimer() {
-      const el = document.getElementById('sessionTimer');
-      if (secondsLeft <= 0) {
-        el.textContent = '00:00';
-        window.location.href = '/dashlogout';
-        return;
-      }
-      const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-      const s = String(secondsLeft % 60).padStart(2, '0');
-      el.textContent = `${m}:${s}`;
-      if (secondsLeft <= 60) {
-        el.style.color = '#cc0000';
-      }
-      secondsLeft--;
+  function updateTimer() {
+    if (sessionExpired) return;
+
+    const el = document.getElementById('sessionTimer');
+    const secondsLeft = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+
+    if (secondsLeft <= 0) {
+      sessionExpired = true;
+      el.textContent = '00:00';
+      window.location.href = '/dashlogout';
+      return;
     }
+
+    const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+    const s = String(secondsLeft % 60).padStart(2, '0');
+    el.textContent = `${m}:${s}`;
+    if (secondsLeft <= 60) el.style.color = '#cc0000';
+  }
 
   updateTimer();
   setInterval(updateTimer, 1000);
