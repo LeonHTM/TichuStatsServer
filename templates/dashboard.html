@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profiles — Tichu</title>
-  <link rel="stylesheet" href="/static/styles.css?v=1.0">
-  <link rel="icon" href="{{ url_for('static', filename='TichuIconV1-iOS-Default-128x128@1x.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='TichuIconV1-iOS-Default-128x128@1x.png') }}">
+  <link rel="stylesheet" href="/static/styles.css?v=3.0">
 </head>
 <body>
 
@@ -19,11 +17,45 @@
     <h1 class="page-title">Profiles</h1>
     <p class="page-subtitle">{{ profiles|length }} player{{ 's' if profiles|length != 1 else '' }} registered</p>
 
-    <div class="grid">
-      {% for profile in profiles %}
-      <div class="profile-card" id="card-{{ profile.id }}">
+    <div class="sort-search-row">
 
-        <!-- Always visible header -->
+  <div class="toolbar">
+
+  <div class="sort-bar">
+    <button class="sort-btn active" onclick="sortCards('id', 'asc', this)">ID ↑</button>
+    <button class="sort-btn" onclick="sortCards('id', 'desc', this)">ID ↓</button>
+    <button class="sort-btn" onclick="sortCards('name', 'asc', this)">A → Z</button>
+    <button class="sort-btn" onclick="sortCards('name', 'desc', this)">Z → A</button>
+    <button class="sort-btn" onclick="sortCards('elo', 'desc', this)">ELO ↑</button>
+    <button class="sort-btn" onclick="sortCards('elo', 'asc', this)">ELO ↓</button>
+    <button class="sort-btn" onclick="sortCards('date', 'desc', this)">Newest</button>
+    <button class="sort-btn" onclick="sortCards('date', 'asc', this)">Oldest</button>
+  </div>
+
+  <div class="search-wrapper">
+    <img src="{{ url_for('static', filename='magnifyingglass.svg') }}" class="search-icon" />
+
+    <input
+      type="text"
+      id="profileSearch"
+      placeholder="Search profiles"
+      oninput="filterProfiles()"
+    >
+  </div>
+
+</div>
+
+</div>
+
+    <div class="grid" id="profileGrid">
+      {% for profile in profiles %}
+      <div class="profile-card"
+           id="card-{{ profile.id }}"
+           data-id="{{ profile.id }}"
+           data-name="{{ profile.name or '' }}"
+           data-elo="{{ profile.elo or 0 }}"
+           data-date="{{ profile.created_at.isoformat() if profile.created_at else '' }}">
+
         <div class="card-header" onclick="toggleCard(`card-{{ profile.id }}`)">
 
           {% if profile.profile_image_url %}
@@ -50,7 +82,6 @@
           </div>
         </div>
 
-        <!-- Expandable body -->
         <div class="card-body">
 
           <div class="section-label">Performance</div>
@@ -65,37 +96,19 @@
 
           <div class="section-label">Stats</div>
           <div class="badge-row">
-            <span class="badge {% if profile.gambler > 0 %}earned{% endif %}">
-              Gambler {{ profile.gambler }}
-            </span>
-            <span class="badge {% if profile.big_gambler > 0 %}earned{% endif %}">
-              Big Gambler {{ profile.big_gambler }}
-            </span>
-            <span class="badge {% if profile.pingu_gambler > 0 %}earned{% endif %}">
-              Pingu Gambler {{ profile.pingu_gambler }}
-            </span>
-            <span class="badge {% if profile.visionary > 0 %}earned{% endif %}">
-              Visionary {{ profile.visionary }}
-            </span>
-            <span class="badge {% if profile.addict > 0 %}earned{% endif %}">
-              Addict {{ profile.addict }}
-            </span>
-            <span class="badge {% if profile.teamplayer > 0 %}earned{% endif %}">
-              Team Player {{ profile.teamplayer }}
-            </span>
-            <span class="badge {% if profile.announcer > 0 %}earned{% endif %}">
-              Announcer {{ profile.announcer }}
-            </span>
-            <span class="badge {% if profile.saboteur > 0 %}earned{% endif %}">
-              Saboteur {{ profile.saboteur }}
-            </span>
-            <span class="badge {% if profile.bomber > 0 %}earned{% endif %}">
-              Bomber {{ profile.bomber }}
-            </span>
+            <span class="badge {% if profile.gambler > 0 %}earned{% endif %}">Gambler {{ profile.gambler }}</span>
+            <span class="badge {% if profile.big_gambler > 0 %}earned{% endif %}">Big Gambler {{ profile.big_gambler }}</span>
+            <span class="badge {% if profile.pingu_gambler > 0 %}earned{% endif %}">Pingu Gambler {{ profile.pingu_gambler }}</span>
+            <span class="badge {% if profile.visionary > 0 %}earned{% endif %}">Visionary {{ profile.visionary }}</span>
+            <span class="badge {% if profile.addict > 0 %}earned{% endif %}">Addict {{ profile.addict }}</span>
+            <span class="badge {% if profile.teamplayer > 0 %}earned{% endif %}">Team Player {{ profile.teamplayer }}</span>
+            <span class="badge {% if profile.announcer > 0 %}earned{% endif %}">Announcer {{ profile.announcer }}</span>
+            <span class="badge {% if profile.saboteur > 0 %}earned{% endif %}">Saboteur {{ profile.saboteur }}</span>
+            <span class="badge {% if profile.bomber > 0 %}earned{% endif %}">Bomber {{ profile.bomber }}</span>
           </div>
 
           <div class="meta-row">
-            {% if profile.created_at %} Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
+            {% if profile.created_at %}Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
           </div>
 
         </div>
@@ -111,34 +124,102 @@
   <script>
     function toggleCard(id) {
       const card = document.getElementById(id);
-      card.classList.toggle('open');
-      const btn = card.querySelector('.expand-btn');
-      btn.childNodes[0].textContent = card.classList.contains('open') ? 'Hide stats ' : 'Show stats ';
+      const isOpen = card.classList.contains('open');
+      document.querySelectorAll('.profile-card').forEach(c => {
+        c.classList.remove('open');
+        c.querySelector('.expand-btn').childNodes[0].textContent = 'Show stats ';
+      });
+      if (!isOpen) {
+        card.classList.add('open');
+        card.querySelector('.expand-btn').childNodes[0].textContent = 'Hide stats ';
+      }
+    }
+
+    function sortCards(key, dir, btn) {
+      // Update active button
+      document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const grid = document.getElementById('profileGrid');
+      const cards = Array.from(grid.querySelectorAll('.profile-card'));
+
+      cards.sort((a, b) => {
+        let valA, valB;
+
+        if (key === 'id') {
+          valA = parseInt(a.dataset.id);
+          valB = parseInt(b.dataset.id);
+        } else if (key === 'name') {
+          valA = a.dataset.name.toLowerCase();
+          valB = b.dataset.name.toLowerCase();
+        } else if (key === 'elo') {
+          valA = parseInt(a.dataset.elo);
+          valB = parseInt(b.dataset.elo);
+        } else if (key === 'date') {
+          valA = a.dataset.date ? new Date(a.dataset.date) : new Date(0);
+          valB = b.dataset.date ? new Date(b.dataset.date) : new Date(0);
+        }
+
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      cards.forEach(card => grid.appendChild(card));
     }
   </script>
-  <script>
-  // Check session every 30 seconds
-  setInterval(async () => {
-    const res = await fetch("/session_check");
-    if (res.status === 401) {
-      window.location.href = "/";
-    }
-  }, 900000);
-</script>
-<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
-<script>
-  const socket = io();
 
-  // Reload the page when any relevant event fires
-  socket.on("profile_created",       () => location.reload());
-  socket.on("profile_deleted",       () => location.reload());
-  socket.on("username_updated",      () => location.reload());
-  socket.on("profile_image_updated", () => location.reload());
-  socket.on("friendship_added",      () => location.reload());
-  socket.on("friendship_removed",    () => location.reload());
-  socket.on("friend_request_sent",   () => location.reload());
-  socket.on("friend_request_updated",() => location.reload());
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+    socket.on("profile_created",        () => location.reload());
+    socket.on("profile_deleted",        () => location.reload());
+    socket.on("username_updated",       () => location.reload());
+    socket.on("profile_image_updated",  () => location.reload());
+    socket.on("friendship_added",       () => location.reload());
+    socket.on("friendship_removed",     () => location.reload());
+    socket.on("friend_request_sent",    () => location.reload());
+    socket.on("friend_request_updated", () => location.reload());
+
+    setInterval(async () => {
+      const res = await fetch("/session_check");
+      if (res.status === 401) window.location.href = "/";
+    }, 30000);
+
+
+    function filterProfiles() {
+  const query = document
+    .getElementById('profileSearch')
+    .value
+    .trim()
+    .toLowerCase();
+
+  const cards = document.querySelectorAll('.profile-card');
+
+  cards.forEach(card => {
+    const name = (card.dataset.name || '').toLowerCase();
+    const email = (card.dataset.email || '').toLowerCase();
+    const id = (card.dataset.id || '').toLowerCase();
+    const elo = (card.dataset.elo || '').toLowerCase();
+
+    const match =
+      name.includes(query) ||
+      email.includes(query) ||
+      id.includes(query) ||
+      elo.includes(query);
+
+    card.style.display = match ? '' : 'none';
+  });
+}
+
+
+
+  
+
+  </script>
+  
+
+  
 
 </body>
 </html>

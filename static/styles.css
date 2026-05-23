@@ -1,8 +1,8 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --primary: #0066cc;
-  --primary-hover: #0071e3;
+  --primary: #B6A236;
+  --primary-hover: #9B892D;
   --ink: #1d1d1f;
   --ink-muted: #7a7a7a;
   --ink-muted-light: #cccccc;
@@ -270,6 +270,98 @@ main {
   overflow: hidden;
 }
 
+/* SORT BAR */ 
+.sort-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sort-btn { font-family: var(--font-text); font-size: 13px; font-weight: 400; letter-spacing: -0.224px; color: var(--ink-muted); background: var(--canvas); border: 1px solid var(--hairline); border-radius: 980px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; 
+} 
+.sort-btn:hover { background: var(--canvas-parchment); color: var(--ink); 
+} 
+.sort-btn.active { background: var(--primary); color: #ffffff; border-color: var(--primary); 
+}
+
+
+/* TOOLBAR */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+/* SEARCH */
+.search-wrapper {
+  position: relative;
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.search-wrapper input {
+  width: 100%;
+  height: 38px;
+  border-radius: 980px;
+  border: 1px solid var(--hairline);
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  padding: 0 14px 0 38px; /* <-- THIS fixes everything */
+
+  font-family: var(--font-text);
+  font-size: 13px;
+  letter-spacing: -0.224px;
+  color: var(--ink);
+
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.search-wrapper input::placeholder {
+  color: var(--ink-muted);
+}
+
+.search-wrapper input:hover {
+  background: rgba(255,255,255,0.9);
+}
+
+.search-wrapper input:focus {
+  border-color: var(--primary);
+  background: var(--canvas);
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.12);
+}
+
+/* MOBILE */
+@media (max-width: 720px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-wrapper {
+    width: 100%;
+  }
+}
 
 
 .card-header {
