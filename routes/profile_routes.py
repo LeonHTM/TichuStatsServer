@@ -65,7 +65,33 @@ def create_profile():
     socketio.emit("profile_created", {"id": new_profile.id, "email": new_profile.email, "name": new_profile.name})
     return jsonify({"id": new_profile.id, "token": token}), 201
 
+@profile_bp.route("/dashboard/update_profile/<int:profile_id>", methods=["POST"])
+@jwt_or_session_required
+def dashboard_update_profile(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
 
+    name = request.form.get("name")
+    email = request.form.get("email")
+
+    if name:
+        profile.name = name
+    if email:
+        profile.email = email
+
+    if "image" in request.files:
+        file = request.files["image"]
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}")
+            filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+            profile.profile_image_url = filepath
+            socketio.emit("profile_image_updated", {"profile_id": profile_id, "image_url": filepath})
+
+    db.session.commit()
+    socketio.emit("username_updated", {"profile_id": profile_id, "name": profile.name})
+    return "ok", 200
 
 @profile_bp.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
 @jwt_required()
@@ -179,3 +205,5 @@ def send_notification(profile_id):
         conversation_id=data.get("conversation_id", "default")
     )
     return jsonify({"success": True}), 200
+
+
