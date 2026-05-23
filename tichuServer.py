@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 from flask import Flask, request, redirect, session, render_template
 from flask_jwt_extended import create_access_token
 from extensions import db, socketio, jwt
@@ -6,8 +9,11 @@ from routes.auth_routes import auth_bp
 from routes.profile_routes import profile_bp
 from routes.friend_routes import friend_bp
 from routes.game_routes import game_bp
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 import os
+
+
+SESSION_MINUTES = 30
 
 def create_app():
     app = Flask(__name__)
@@ -18,7 +24,7 @@ def create_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
     app.config["SECRET_KEY"] = SECRET_KEY
-    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=SESSION_MINUTES)
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
     db.init_app(app)
@@ -46,18 +52,22 @@ def create_app():
     def browser_login():
         password = request.form.get("password")
         if password == BROWSER_PASSWORD:
-            session.permanent = True  # ← THIS is what makes the timeout work
-            token = create_access_token(identity="browser")
-            session["jwt"] = token
+            session.permanent = True
+            session["jwt"] = create_access_token(identity="browser")
+            session["login_time"] = datetime.now(timezone.utc).isoformat()
             return redirect("/dashboard")
         return render_template("login.html", error=True)
 
     @app.route("/dashlogout")
     def browser_logout():
         session.pop("jwt", None)
+        session.pop("login_time", None)
         return redirect("/")
 
     return app
+
+
+    
 
 
 tichuServer = create_app()

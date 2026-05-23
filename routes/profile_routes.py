@@ -1,24 +1,24 @@
-from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template
+from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from profileLogic import Profile
 from werkzeug.utils import secure_filename
+from datetime import datetime, timezone
+from config import SESSION_MINUTES, ALLOWED_EXTENSIONS
 import os
 from routes.auth_routes import jwt_or_session_required
 
 profile_bp = Blueprint("profile", __name__)
 
 def allowed_file(filename):
-    from config import ALLOWED_EXTENSIONS
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @profile_bp.route("/profiles", methods=["GET"])
 @jwt_or_session_required
 def get_profiles():
-    # Return HTML for browsers, JSON for API clients
     if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
         profiles = Profile.query.all()
-        return render_template("dashboard.html", profiles=profiles)
+        return render_template("dashboard.html", profiles=profiles, session_seconds=0)
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 
@@ -26,7 +26,15 @@ def get_profiles():
 @jwt_or_session_required
 def dashboard():
     profiles = Profile.query.all()
-    return render_template("dashboard.html", profiles=profiles)
+
+    remaining = 0
+    login_time_str = session.get("login_time")
+    if login_time_str:
+        login_time = datetime.fromisoformat(login_time_str)
+        elapsed = (datetime.now(timezone.utc) - login_time).total_seconds()
+        remaining = max(0, int(SESSION_MINUTES * 60 - elapsed))
+
+    return render_template("dashboard.html", profiles=profiles, session_seconds=remaining)
 
 @profile_bp.route("/profilesM", methods=["GET"])
 @jwt_or_session_required
@@ -68,6 +76,34 @@ def create_profile():
     token = create_access_token(identity=str(new_profile.id))
     socketio.emit("profile_created", {"id": new_profile.id, "email": new_profile.email, "name": new_profile.name})
     return jsonify({"id": new_profile.id, "token": token}), 201
+
+@profile_bp.route("/dashboard/update_profile/<int:profile_id>", methods=["POST"])
+@jwt_or_session_required
+def dashboard_update_profile(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    name = request.form.get("name")
+    email = request.form.get("email")
+
+    if name:
+        profile.name = name
+    if email:
+        profile.email = email
+
+    if "image" in request.files:
+        file = request.files["image"]
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}")
+            filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+            profile.profile_image_url = filepath
+            socketio.emit("profile_image_updated", {"profile_id": profile_id, "image_url": filepath})
+
+    db.session.commit()
+    socketio.emit("username_updated", {"profile_id": profile_id, "name": profile.name})
+    return "ok", 200
 
 @profile_bp.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
 @jwt_required()
