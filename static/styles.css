@@ -12,6 +12,7 @@
   --divider: #f0f0f0;
   --font-display: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-text: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --box-shadow: #f4efd7;
 }
 
 html, body {
@@ -62,7 +63,7 @@ nav {
   color: #f5f5f7;
   text-decoration: none;
   letter-spacing: -0.224px;
-  opacity: 0.7;
+  opacity: 0.85;
   transition: opacity 0.15s;
 }
 
@@ -107,10 +108,12 @@ nav {
 
 /* FORM */
 .field {
+  border-radius: 980px;
   margin-bottom: 16px;
 }
 
 .field label {
+  border-radius: 980px;
   display: block;
   font-size: 14px;
   font-weight: 600;
@@ -120,10 +123,10 @@ nav {
 }
 
 .field input[type="password"] {
+  border-radius: 980px;
   width: 100%;
   height: 44px;
   border: 1px solid var(--hairline);
-  border-radius: 12px;
   padding: 0 16px;
   font-family: var(--font-text);
   font-size: 17px;
@@ -138,11 +141,13 @@ nav {
 }
 
 .field input[type="password"]:focus {
+  border-radius: 980px;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  box-shadow: 0 0 0 3px  var(--box-shadow-);
 }
 
 .field input[type="password"]::placeholder {
+  border-radius: 980px;
   color: var(--ink-muted-light);
 }
 
@@ -278,11 +283,26 @@ main {
   align-items: center;
 }
 
-.sort-btn { font-family: var(--font-text); font-size: 13px; font-weight: 400; letter-spacing: -0.224px; color: var(--ink-muted); background: var(--canvas); border: 1px solid var(--hairline); border-radius: 980px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; 
+.sort-btn { 
+  height: 38px;
+  font-family: var(--font-text); 
+  font-size: 13px; font-weight: 400; 
+  letter-spacing: -0.224px; color: var(--ink-muted); 
+  background: var(--canvas); border: 1px solid var(--hairline); 
+  border-radius: 980px; 
+  padding: 6px 14px; 
+  cursor: pointer; 
+  transition: background 0.15s, 
+  color 0.15s, border-color 0.15s; 
 } 
-.sort-btn:hover { background: var(--canvas-parchment); color: var(--ink); 
+.sort-btn:hover { 
+  background: var(--canvas-parchment); 
+  color: var(--ink); 
 } 
-.sort-btn.active { background: var(--primary); color: #ffffff; border-color: var(--primary); 
+.sort-btn.active { 
+  background: var(--primary); 
+  color: #ffffff; 
+  border-color: var(--primary); 
 }
 
 
@@ -348,7 +368,7 @@ main {
 .search-wrapper input:focus {
   border-color: var(--primary);
   background: var(--canvas);
-  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.12);
+  box-shadow: 0 0 0 3px var(--box-shadow);
 }
 
 /* MOBILE */
@@ -497,9 +517,9 @@ main {
 }
 
 .badge.earned {
-  background: #e8f1fb;
-  color: #0055aa;
-  border-color: #b8d4f5;
+  background: #eee7c4;
+  color: #9B892D;;
+  border-color:   #ddcf88;
 }
 
 .meta-row {
