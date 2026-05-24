@@ -159,13 +159,13 @@ nav {
 
 /* FORM */
 .field {
-  border-radius: 980px;
+  border-radius: 12px;
   margin-bottom: 16px;
 }
 
 .field label {
   border-color: #f5f5f7;
-  border-radius: 980px;
+  border-radius: 12px;
   display: block;
   font-size: 14px;
   font-weight: 600;
@@ -176,7 +176,7 @@ nav {
 }
 
 .field input[type="password"] {
-  border-radius: 980px;
+  border-radius: 12px;
   width: 100%;
   height: 44px;
   border: 1px solid var(--hairline);
@@ -194,13 +194,13 @@ nav {
 }
 
 .field input[type="password"]:focus {
-  border-radius: 980px;
+  border-radius: 12px;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px  var(--box-shadow);
 }
 
 .field input[type="password"]::placeholder {
-  border-radius: 980px;
+  border-radius: 12px;
   color: var(--ink-muted-light);
 }
 
