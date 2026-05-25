@@ -18,7 +18,7 @@ def allowed_file(filename):
 def get_profiles():
     if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
         profiles = Profile.query.all()
-        return render_template("dashboard.html", profiles=profiles, session_seconds=0)
+        return render_template("dashboard-profiles.html", profiles=profiles, session_seconds=0)
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
 

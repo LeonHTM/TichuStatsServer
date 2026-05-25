@@ -61,7 +61,7 @@ def create_app():
         profiles = Profile.query.all()
 
         return render_template(
-            "dashboard.html",
+            "dashboard-profiles.html",
             profiles=profiles,
             session_seconds=remaining
         )
@@ -79,12 +79,12 @@ def create_app():
             session.permanent = True
             session["jwt"] = create_access_token(identity="browser")
             session["expires_at"] = (datetime.now(timezone.utc) + timedelta(minutes=SESSION_MINUTES)).isoformat()
-            return redirect("/dashboard")
+            return redirect("/dashboard/profiles")
         return render_template("login.html", error=True)
 
-    @app.route("/dashboard", methods=["GET"])
+    @app.route("/dashboard/profiles", methods=["GET"])
     @jwt_or_session_required
-    def dashboard():
+    def dashboardprofiles():
         profiles = Profile.query.all()
 
         remaining = 0
@@ -93,7 +93,33 @@ def create_app():
             expires_at = datetime.fromisoformat(expires_at_str)
             remaining = max(0, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
 
-        return render_template("dashboard.html", profiles=profiles, session_seconds=remaining)
+        return render_template("dashboard-profiles.html", profiles=profiles, session_seconds=remaining)
+    
+    @app.route("/dashboard/games", methods=["GET"])
+    @jwt_or_session_required
+    def dashboardgames():
+        profiles = Profile.query.all()
+
+        remaining = 0
+        expires_at_str = session.get("expires_at")
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str)
+            remaining = max(0, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
+
+        return render_template("dashboard-games.html", profiles=profiles, session_seconds=remaining)
+    
+    @app.route("/dashboard/rounds", methods=["GET"])
+    @jwt_or_session_required
+    def dashboardrounds():
+        profiles = Profile.query.all()
+
+        remaining = 0
+        expires_at_str = session.get("expires_at")
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str)
+            remaining = max(0, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
+
+        return render_template("dashboard-rounds.html", profiles=profiles, session_seconds=remaining)
 
     @app.route("/dashlogout")
     def browser_logout():

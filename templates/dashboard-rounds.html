@@ -12,9 +12,26 @@
 
   <nav>
     <a href="/dashboard" class="nav-title">Tichu Dashboard</a>
-    <div class="nav-session" id="sessionTimer">--:--</div>
-    <a href="/dashlogout" class="nav-logout">Sign out</a>
-</nav>
+    <a href="/dashboard/profiles" class="nav-link {% if request.path == '/dashboard/profiles' %}active{% endif %}">Profiles</a>
+    <a href="/dashboard/rounds" class="nav-link {% if request.path == '/dashboard/rounds' %}active{% endif %}">Rounds</a>
+    <a href="/dashboard/games" class="nav-link {% if request.path == '/dashboard/games' %}active{% endif %}">Games</a>
+
+    <div class="nav-profile-wrap">
+      <button class="nav-profile-btn" onclick="toggleProfilePopup(event)" aria-label="Account">
+        <svg viewBox="0 0 116.992 116.992" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+          <path fill="currentColor" d="M58.496,109.742c27.503,0 49.825,-22.271 49.825,-49.774c0,-27.503 -22.322,-49.773 -49.825,-49.773c-27.451,0 -49.773,22.27 -49.773,49.773c0,27.503 22.322,49.774 49.773,49.774zM58.496,101.474c-22.945,0 -41.465,-18.561 -41.465,-41.506c0,-22.944 18.52,-41.506 41.465,-41.506c22.945,0 41.506,18.562 41.506,41.506c0,22.945 -18.561,41.506 -41.506,41.506zM91.931,92.156l-0.156,-0.549c-2.433,-7.174 -15.338,-15.037 -33.279,-15.037c-17.92,0 -30.773,7.852 -33.227,15.005l-0.156,0.581c8.825,8.692 23.891,13.762 33.394,13.762c9.575,0 24.525,-5.028 33.424,-13.762zM58.496,68.304c9.398,0.103 16.759,-7.924 16.759,-18.421c0,-9.875 -7.393,-18.048 -16.759,-18.048c-9.314,0 -16.769,8.173 -16.707,18.048c0.052,10.497 7.31,18.317 16.707,18.421z"/>
+        </svg>
+      </button>
+      <div class="nav-popup" id="navPopup">
+        <div class="nav-popup-session">
+          Session expires in
+          <span class="nav-popup-timer" id="sessionTimer">--:--</span>
+        </div>
+        <div class="nav-popup-divider"></div>
+        <a href="/dashlogout" class="nav-popup-logout">Sign out</a>
+      </div>
+    </div>
+  </nav>
 
   <!-- EDIT MODAL -->
   <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
@@ -53,19 +70,15 @@
   </div>
 
   <main>
-    <h1 class="page-title">Profiles</h1>
+    <h1 class="page-title">Rounds</h1>
     <p class="page-subtitle">
-      {{ profiles|length }} player{{ 's' if profiles|length != 1 else '' }} registered
+      {{ profiles|length }} round{{ 's' if profiles|length != 1 else '' }} played
     </p>
 
     <div class="toolbar">
       <div class="sort-bar">
-        <button class="sort-btn active" onclick="sortCards('id', 'asc', this)">ID ↑</button>
-        <button class="sort-btn" onclick="sortCards('id', 'desc', this)">ID ↓</button>
-        <button class="sort-btn" onclick="sortCards('name', 'asc', this)">A → Z</button>
-        <button class="sort-btn" onclick="sortCards('name', 'desc', this)">Z → A</button>
-        <button class="sort-btn" onclick="sortCards('elo', 'desc', this)">ELO ↑</button>
-        <button class="sort-btn" onclick="sortCards('elo', 'asc', this)">ELO ↓</button>
+        <button class="sort-btn" onclick="sortCards('elo', 'desc', this)">Points ↑</button>
+        <button class="sort-btn" onclick="sortCards('elo', 'asc', this)">Points ↓</button>
         <button class="sort-btn" onclick="sortCards('date', 'desc', this)">Newest</button>
         <button class="sort-btn" onclick="sortCards('date', 'asc', this)">Oldest</button>
       </div>
@@ -73,7 +86,7 @@
         <svg class="search-icon" viewBox="0 0 19.4434 19.2676" xmlns="http://www.w3.org/2000/svg">
           <path d="M0 7.79297C0 12.0898 3.49609 15.5859 7.79297 15.5859C9.49219 15.5859 11.0449 15.0391 12.3242 14.1211L17.1289 18.9355C17.3535 19.1602 17.6465 19.2676 17.959 19.2676C18.623 19.2676 19.082 18.7695 19.082 18.1152C19.082 17.8027 18.9648 17.5195 18.7598 17.3145L13.9844 12.5098C14.9902 11.2012 15.5859 9.57031 15.5859 7.79297C15.5859 3.49609 12.0898 0 7.79297 0C3.49609 0 0 3.49609 0 7.79297ZM1.66992 7.79297C1.66992 4.41406 4.41406 1.66992 7.79297 1.66992C11.1719 1.66992 13.916 4.41406 13.916 7.79297C13.916 11.1719 11.1719 13.916 7.79297 13.916C4.41406 13.916 1.66992 11.1719 1.66992 7.79297Z" fill="currentColor"/>
         </svg>
-        <input type="text" id="profileSearch" placeholder="Search profiles" oninput="filterProfiles()" />
+        <input type="text" id="profileSearch" placeholder="Search rounds" oninput="filterProfiles()" />
       </div>
     </div>
 
@@ -100,7 +113,7 @@
                 <div class="avatar-placeholder">
                   {{ profile.name[0].upper() if profile.name else '?' }}
                 </div>
-              {% endif %}
+              {% endif %}s
 
               <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
               <div class="profile-email">{{ profile.email }} · ID {{ profile.id }}</div>
@@ -309,6 +322,16 @@
     const res = await fetch("/session_check");
     if (res.status === 401) window.location.href = "/";
   }, 30000);
+</script>
+<script>
+  function toggleProfilePopup(e) {
+    e.stopPropagation();
+    document.getElementById('navPopup').classList.toggle('visible');
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('navPopup')?.classList.remove('visible');
+  });
 </script>
 <script>
   const expiresAt = new Date(Date.now() + {{ session_seconds }} * 1000);
