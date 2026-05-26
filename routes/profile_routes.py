@@ -194,7 +194,7 @@ def send_notification(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile or not profile.device_token:
         return jsonify({"error": "Profile not found or no device token"}), 404
-    from notificationLogic import send_push_notification
+    from logic.notificationLogic import send_push_notification
     data = request.get_json()
     send_push_notification(
         device_token=profile.device_token,

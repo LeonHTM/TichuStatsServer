@@ -13,6 +13,7 @@ from datetime import timedelta, datetime, timezone
 import os
 from routes.auth_routes import jwt_or_session_required
 from logic.profileLogic import Profile
+from logic.gameLogic import Game
 
 
 
@@ -97,16 +98,47 @@ def create_app():
     
     @app.route("/dashboard/games", methods=["GET"])
     @jwt_or_session_required
-    def dashboardgames():
-        profiles = Profile.query.all()
+    def dashboard_games():
+        games = Game.query.order_by(Game.date.desc()).all()
+        
+        # Resolve player names
+        profile_ids = set()
+        for g in games:
+            for pid in [g.team1_player1_id, g.team1_player2_id, g.team2_player1_id, g.team2_player2_id]:
+                if pid:
+                    profile_ids.add(pid)
+        
+        profiles = Profile.query.filter(Profile.id.in_(profile_ids)).all()
+        name_map = {p.id: (p.name or f"ID {p.id}") for p in profiles}
+        
+        games_data = []
+        for g in games:
+            games_data.append({
+                "id": g.id,
+                "date": g.date,
+                "target": g.target,
+                "allow_pingus": g.allow_pingus,
+                "team1_p1": name_map.get(g.team1_player1_id, "?"),
+                "team1_p2": name_map.get(g.team1_player2_id, "?"),
+                "team2_p1": name_map.get(g.team2_player1_id, "?"),
+                "team2_p2": name_map.get(g.team2_player2_id, "?"),
+                "team1_p1_id": g.team1_player1_id,
+                "team1_p2_id": g.team1_player2_id,
+                "team2_p1_id": g.team2_player1_id,
+                "team2_p2_id": g.team2_player2_id,
+                "points1": g.current_points_team1,
+                "points2": g.current_points_team2,
+                "winner": g.winner,
+            })
 
+        
         remaining = 0
         expires_at_str = session.get("expires_at")
         if expires_at_str:
             expires_at = datetime.fromisoformat(expires_at_str)
             remaining = max(0, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
 
-        return render_template("dashboard-games.html", profiles=profiles, session_seconds=remaining)
+        return render_template("dashboard-games.html", games=games_data, session_seconds=remaining)
     
     @app.route("/dashboard/rounds", methods=["GET"])
     @jwt_or_session_required

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile, ProfileFriend, FriendRequest
-from notificationLogic import send_push_notification
+from logic.notificationLogic import send_push_notification
 from config import BASE_URL
 
 friend_bp = Blueprint("friend", __name__)
