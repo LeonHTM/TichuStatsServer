@@ -1,8 +1,10 @@
+from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
-from extensions import db
+from extensions import db, socketio
+from logic.roundLogic import Round
 
 class Game(db.Model):
-    __tablename__ = "tichu_games"
+    __tablename__ = "games"
 
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.DateTime, server_default=db.func.now())
@@ -62,5 +64,77 @@ class Game(db.Model):
             "winner": self.winner,
         }
 
+def recalculate(game_id):
+    game = Game.query.get(game_id)
 
-    
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+
+    rounds = (
+        Round.query
+        .filter_by(game_id=game_id)
+        .order_by(Round.round_order)
+        .all()
+    )
+
+    game.current_points_team1 = 0
+    game.current_points_team2 = 0
+    game.winner = None
+
+    def still_in_game(t1, t2, target):
+        return not ((t1 >= target and t1 > t2) or (t2 >= target and t2 > t1))
+
+    game_ended = False
+    winning_round_found = False
+
+    for r in rounds:
+
+        if not game_ended:
+            # add points ONLY while game is active
+            game.current_points_team1 += r.tichu_points_team1 + r.round_points_team1
+            game.current_points_team2 += r.tichu_points_team2 + r.round_points_team2
+
+            cond = still_in_game(
+                game.current_points_team1,
+                game.current_points_team2,
+                game.target
+            )
+
+            # game just ended at this round
+            if not cond:
+                game_ended = True
+                winning_round_found = True
+
+                if (
+                    game.current_points_team1 >= game.target and
+                    game.current_points_team1 > game.current_points_team2
+                ):
+                    game.winner = 1
+
+                elif (
+                    game.current_points_team2 >= game.target and
+                    game.current_points_team2 > game.current_points_team1
+                ):
+                    game.winner = 2
+
+                r.bool_win_round = True
+
+        else:
+            # after game ends: ignore all later rounds
+            r.bool_win_round = False
+
+    # safety: if no win detected, all rounds valid
+    if not winning_round_found:
+        for r in rounds:
+            r.bool_win_round = True
+
+    db.session.commit()
+
+    socketio.emit("game_recalculated", {"game_id": game_id})
+
+    return jsonify({
+        "game_id": game_id,
+        "current_points_team1": game.current_points_team1,
+        "current_points_team2": game.current_points_team2,
+        "winner": game.winner,
+    }), 200

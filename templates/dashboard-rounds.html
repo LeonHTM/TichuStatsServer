@@ -81,6 +81,7 @@
         <button class="sort-btn" onclick="sortCards('elo', 'asc', this)">Points ↓</button>
         <button class="sort-btn" onclick="sortCards('date', 'desc', this)">Newest</button>
         <button class="sort-btn" onclick="sortCards('date', 'asc', this)">Oldest</button>
+      
       </div>
       <div class="search-wrapper">
         <svg class="search-icon" viewBox="0 0 19.4434 19.2676" xmlns="http://www.w3.org/2000/svg">
@@ -113,7 +114,7 @@
                 <div class="avatar-placeholder">
                   {{ profile.name[0].upper() if profile.name else '?' }}
                 </div>
-              {% endif %}s
+              {% endif %}
 
               <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
               <div class="profile-email">{{ profile.email }} · ID {{ profile.id }}</div>

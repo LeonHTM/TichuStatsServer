@@ -3,7 +3,8 @@ from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile
 from logic.roundLogic import Round
-from logic.gameLogic import Game
+from logic.gameLogic import Game, recalculate
+from game_routes import recalculate()
 
 game_bp = Blueprint("round", __name__)
 
@@ -87,8 +88,9 @@ def edit_round(round_id):
         if field in data:
             setattr(round_obj, field, data[field])
 
-    # RECALCULATE LOGIC HERE
+    
     game = round_obj.game
+    recalculate(game.id)
 
     game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
     game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
@@ -113,7 +115,7 @@ def delete_round(round_id):
     db.session.delete(round_obj)
     db.session.flush()
 
-    # RECALCULATE LOGIC HERE
+    recalculate(game.id)
     game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
     game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
 

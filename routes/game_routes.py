@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile
-from logic.gameLogic import Game
+from logic.gameLogic import Game, recalculate
 from logic.roundLogic import Round
 
 game_bp = Blueprint("game", __name__)
@@ -96,21 +96,21 @@ def get_profile_games(profile_id):
         "games": [g.to_dict() for g in games]
     }), 200
 
-@game_bp.route("/recalculate_game/<int:game_id>/", methods=["POST"])
+@game_bp.route("/recalculate_game/<int:game_id>", methods=["POST"])
 #@jwt_required()
-def recalculate(game_id):
-    game = Game.query.get(game_id)
+def recalculate_route(game_id):
+    return recalculate(game_id)
 
+@game_bp.route("/game/<int:game_id>/", methods=["GET"])
+#@jwt_required()
+def get_game(game_id):
+    game = Game.query.get(game_id)
 
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
-    #RECALCULATE LOGIC HERE
+    return jsonify(game.to_dict()), 200
 
-    socketio.emit("game_recalculated", {"game_id": game_id})
-
-    return jsonify({
-        "game_id": game_id,
-        "current_points_team1": game.current_points_team1,
-        "current_points_team2": game.current_points_team1,
-    }), 200
+@game_bp.route("/test-route")
+def test_route():
+    return "OK"

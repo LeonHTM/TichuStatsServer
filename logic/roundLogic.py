@@ -3,10 +3,10 @@ from extensions import db
 
 
 class Round(db.Model):
-    __tablename__ = "tichu_rounds"
+    __tablename__ = "rounds"
 
     id = db.Column(db.Integer, primary_key=True)
-    game_id = db.Column(db.Integer, db.ForeignKey("tichu_games.id"))
+    game_id = db.Column(db.Integer, db.ForeignKey("games.id"))
 
     round_order = db.Column(db.Integer)
 
@@ -28,6 +28,8 @@ class Round(db.Model):
 
     double_win_team1 = db.Column(db.Boolean, default=False)
     double_win_team2 = db.Column(db.Boolean, default=False)
+
+    date = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
 
     bool_win_round = db.Column(db.Boolean, nullable=False, default=False)
     announced_tichu = db.Column(db.JSON, default=list)
@@ -96,4 +98,6 @@ class Round(db.Model):
             "announced_tichu": self.announced_tichu or [],
             "announced_big_tichu": self.announced_big_tichu or [],
             "announced_pingu": self.announced_pingu or [],
+
+            "date": self.date,
         }
