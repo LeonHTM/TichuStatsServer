@@ -4,12 +4,12 @@ from extensions import db, socketio
 from logic.profileLogic import Profile
 from logic.roundLogic import Round
 from logic.gameLogic import Game, recalculate
-from game_routes import recalculate()
 
-game_bp = Blueprint("round", __name__)
 
-@game_bp.route("/add_round", methods=["POST"])
-#@jwt_required()
+round_bp = Blueprint("round", __name__)
+
+@round_bp.route("/add_round", methods=["POST"])
+@jwt_required()
 def add_round():
     data = request.get_json()
 
@@ -63,8 +63,8 @@ def add_round():
     return jsonify(round_obj.to_dict()), 201
 
 
-@game_bp.route("/edit_round/<int:round_id>", methods=["PATCH"])
-#@jwt_required()
+@round_bp.route("/edit_round/<int:round_id>", methods=["PATCH"])
+@jwt_required()
 def edit_round(round_id):
     round_obj = Round.query.get(round_id)
 
@@ -102,8 +102,8 @@ def edit_round(round_id):
     return jsonify(round_obj.to_dict()), 200
 
 
-@game_bp.route("/delete_round/<int:round_id>", methods=["DELETE"])
-#@jwt_required()
+@round_bp.route("/delete_round/<int:round_id>", methods=["DELETE"])
+@jwt_required()
 def delete_round(round_id):
     round_obj = Round.query.get(round_id)
 

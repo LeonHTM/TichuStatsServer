@@ -12,7 +12,7 @@
 <body>
 
 <nav>
-  <a href="/dashboard" class="nav-title">Tichu Dashboard</a>
+  <a href="/dashboard/games" class="nav-title">Tichu Dashboard</a>
   <a href="/dashboard/profiles" class="nav-link {% if request.path == '/dashboard/profiles' %}active{% endif %}">Profiles</a>
   <a href="/dashboard/rounds"   class="nav-link {% if request.path == '/dashboard/rounds'   %}active{% endif %}">Rounds</a>
   <a href="/dashboard/games"    class="nav-link {% if request.path == '/dashboard/games'    %}active{% endif %}">Games</a>
@@ -70,6 +70,7 @@
           <th>Score</th>
           <th>Date</th>
           <th>Target</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -132,12 +133,18 @@
         </td>
 
         <td class="td-target">{{ g.target }}</td>
+        
+        <td>
+          <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
+            Delete
+          </button>
+        </td>
 
       </tr>
 
       <!-- EXPAND ROW -->
       <tr class="expand-row" id="expand-{{ g.id }}">
-        <td colspan="9">
+        <td colspan="10">
           <div class="expand-inner">
 
             <!-- Detail strip -->
@@ -420,6 +427,30 @@
   updateTimer();
   setInterval(updateTimer, 1000);
 </script>
+<script>
+async function deleteGame(event, id) {
+  event.stopPropagation();
+
+  if (!confirm(`Delete game ${id}?`)) return;
+
+  const res = await fetch(`/delete_game/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    alert(err.error || "Failed to delete game");
+    return;
+  }
+
+  document.querySelector(`tr.game-row[data-id="${id}"]`)?.remove();
+  document.querySelector(`#expand-${id}`)?.remove();
+}
+</script>
+
 
 </body>
 </html>

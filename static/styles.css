@@ -740,6 +740,9 @@ main {
   color: var(--primary);
 }
 
+
+
+
 /* MODAL OVERLAY */
 .modal-overlay {
   display: none;
@@ -1118,7 +1121,7 @@ main {
   display: inline-block;
   min-width: 48px;
   padding: 3px 10px;
-  border-radius: 8px;
+  border-radius: 980px;
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -1399,4 +1402,25 @@ main {
 @media (max-width: 540px) {
   .td-target,
   .admin-table th:nth-child(9) { display: none; }
+}
+
+
+.delete-btn{
+  margin-top: -14px;
+  align-self: flex-end;
+  background: none;
+  border: none;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: #cc0000;
+  cursor: pointer;
+  letter-spacing: -0.224px;
+  padding: 0;
+}
+
+
+.delete-btn:hover { 
+  text-decoration: underline; 
+  color: #ff1a1a;
 }

@@ -39,9 +39,7 @@ class Round(db.Model):
     # ------------------------
     # VALIDATION
     # ------------------------
-
     def validate(self):
-        # bombs rule
         for b in [
             self.first_bombs,
             self.second_bombs,
@@ -51,11 +49,9 @@ class Round(db.Model):
             if b > 3:
                 raise ValueError("Max 3 bombs per player")
 
-        # team points must sum to 100
         if self.tichu_points_team1 + self.tichu_points_team2 != 100:
             raise ValueError("Tichu points must sum to 100")
 
-        # announcements must be unique
         all_ann = (
             self.announced_tichu +
             self.announced_big_tichu +
@@ -84,7 +80,6 @@ class Round(db.Model):
             "third_bombs": self.third_bombs,
             "fourth_bombs": self.fourth_bombs,
 
-
             "tichu_points_team1": self.tichu_points_team1,
             "tichu_points_team2": self.tichu_points_team2,
 
@@ -93,11 +88,11 @@ class Round(db.Model):
 
             "double_win_team1": self.double_win_team1,
             "double_win_team2": self.double_win_team2,
-            
+
             "bool_win_round": self.bool_win_round,
             "announced_tichu": self.announced_tichu or [],
             "announced_big_tichu": self.announced_big_tichu or [],
             "announced_pingu": self.announced_pingu or [],
 
-            "date": self.date,
+            "date": self.date.isoformat() if self.date else None,
         }

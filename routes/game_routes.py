@@ -4,11 +4,12 @@ from extensions import db, socketio
 from logic.profileLogic import Profile
 from logic.gameLogic import Game, recalculate
 from logic.roundLogic import Round
+from routes.auth_routes import jwt_or_session_required
 
 game_bp = Blueprint("game", __name__)
 
 @game_bp.route("/add_game", methods=["POST"])
-#@jwt_required()
+@jwt_required()
 def add_game():
     data = request.get_json()
 
@@ -33,7 +34,7 @@ def add_game():
 
 
 @game_bp.route("/delete_game/<int:game_id>", methods=["DELETE"])
-#@jwt_required()
+@jwt_or_session_required
 def delete_game(game_id):
     game = Game.query.get(game_id)
 
@@ -49,7 +50,7 @@ def delete_game(game_id):
 
 
 @game_bp.route("/game/<int:game_id>/rounds", methods=["GET"])
-#@jwt_required()
+@jwt_or_session_required
 def get_game_rounds(game_id):
     game = Game.query.get(game_id)
 
@@ -72,7 +73,7 @@ def get_game_rounds(game_id):
 from sqlalchemy import or_
 
 @game_bp.route("/profile/<int:profile_id>/games", methods=["GET"])
-#@jwt_required()
+@jwt_required()
 def get_profile_games(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -97,12 +98,12 @@ def get_profile_games(profile_id):
     }), 200
 
 @game_bp.route("/recalculate_game/<int:game_id>", methods=["POST"])
-#@jwt_required()
+@jwt_required()
 def recalculate_route(game_id):
     return recalculate(game_id)
 
-@game_bp.route("/game/<int:game_id>/", methods=["GET"])
-#@jwt_required()
+@game_bp.route("/game/<int:game_id>", methods=["GET"])
+@jwt_required()
 def get_game(game_id):
     game = Game.query.get(game_id)
 
