@@ -36,6 +36,9 @@ class Round(db.Model):
     announced_big_tichu = db.Column(db.JSON, default=list)
     announced_pingu = db.Column(db.JSON, default=list)
 
+    # ADD THIS
+    game = db.relationship("Game", back_populates="rounds")
+
     # ------------------------
     # VALIDATION
     # ------------------------
@@ -90,9 +93,9 @@ class Round(db.Model):
             "double_win_team2": self.double_win_team2,
 
             "bool_win_round": self.bool_win_round,
-            "announced_tichu": self.announced_tichu or [],
-            "announced_big_tichu": self.announced_big_tichu or [],
-            "announced_pingu": self.announced_pingu or [],
+            "announced_tichu": self.announced_tichu if isinstance(self.announced_tichu, list) else [],
+            "announced_big_tichu": self.announced_big_tichu if isinstance(self.announced_big_tichu, list) else [],
+            "announced_pingu": self.announced_pingu if isinstance(self.announced_pingu, list) else [],
 
             "date": self.date.isoformat() if self.date else None,
         }

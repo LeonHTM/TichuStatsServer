@@ -22,6 +22,8 @@ class Game(db.Model):
 
     winner = db.Column(db.Integer)
 
+    rounds = db.relationship("Round", back_populates="game", lazy=True, cascade="all, delete-orphan")
+
     # ------------------------
     # VALIDATION
     # ------------------------

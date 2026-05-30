@@ -7,7 +7,7 @@ from config import BASE_URL
 
 friend_bp = Blueprint("friend", __name__)
 
-@friend_bp.route("/friends/<int:profile_id>/", methods=["GET"])
+@friend_bp.route("/friends/<int:profile_id>", methods=["GET"])
 @jwt_required()
 def get_friends(profile_id):
     friendships = ProfileFriend.query.filter(

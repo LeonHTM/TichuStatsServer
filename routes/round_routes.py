@@ -64,7 +64,7 @@ def add_round():
 
 
 @round_bp.route("/edit_round/<int:round_id>", methods=["PATCH"])
-@jwt_required()
+#@jwt_required()
 def edit_round(round_id):
     round_obj = Round.query.get(round_id)
 
@@ -80,7 +80,7 @@ def edit_round(round_id):
         "tichu_points_team1", "tichu_points_team2",
         "round_points_team1", "round_points_team2",
         "double_win_team1", "double_win_team2",
-        "bool_win_round",  # NEW
+        "bool_win_round",  
         "announced_tichu", "announced_big_tichu", "announced_pingu",
     ]
 

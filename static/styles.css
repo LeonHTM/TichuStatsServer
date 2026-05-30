@@ -888,8 +888,26 @@ main {
 /* MODAL ACTIONS */
 .modal-actions {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 16px;
+}
+
+.delete-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 999px;
+  background: #cc000015;
+  border: none;
+  font-family: var(--font-text);
+  font-size: 15px;
+  font-weight: 600;
+  color: #cc0000;
+  cursor: pointer;
+  letter-spacing: -0.224px;
+}
+.delete-btn:hover {
+  background: #cc000025;
 }
 
 .modal-actions .btn-primary {
@@ -897,6 +915,8 @@ main {
   margin-top: 0;
   height: 44px;
   font-size: 15px;
+  width: 100%;
+  padding: 12px;
 }
 
 .btn-secondary {
@@ -911,7 +931,10 @@ main {
   font-weight: 400;
   letter-spacing: -0.374px;
   cursor: pointer;
+  margin-top: 0;
   transition: background 0.15s;
+  width: 100%;
+  padding: 12px;
 }
 
 .btn-secondary:hover { background: var(--canvas-parchment); }
@@ -1405,22 +1428,23 @@ main {
 }
 
 
-.delete-btn{
-  margin-top: -14px;
-  align-self: flex-end;
-  background: none;
+
+
+
+
+
+
+
+
+
+.btn-danger {
+  background: #cc0000;
+  color: white;
   border: none;
-  font-family: var(--font-text);
-  font-size: 13px;
-  font-weight: 600;
-  color: #cc0000;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  letter-spacing: -0.224px;
-  padding: 0;
+  font-weight: 600;
 }
-
-
-.delete-btn:hover { 
-  text-decoration: underline; 
-  color: #ff1a1a;
-}
+.btn-danger:hover { background: #aa0000; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }

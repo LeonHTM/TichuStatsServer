@@ -62,10 +62,31 @@
     </div>
 
     <div class="modal-error" id="modalError"></div>
-
     <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveProfile()" id="saveBtn">Save</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="delete-btn" id="modalDeleteBtn" onclick="openDeleteFromModal(event)">Delete Profile</button>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="deleteOverlay" onclick="closeDeleteModal()"></div>
+  <div class="modal" id="deleteModal">
+    <div class="modal-header">
+      <h2 class="modal-title">Delete Profile</h2>
+      <button class="modal-close" onclick="closeDeleteModal()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <p style="margin: 0 0 8px; color: var(--text-secondary, #7a7a7a); font-size: 14px;">
+      Are you sure you want to delete <strong id="deleteProfileName"></strong>? This cannot be undone.
+    </p>
+    <div class="modal-error" id="deleteError"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="delete-btn" onclick="confirmDelete()" id="deleteBtn">Delete</button>
     </div>
   </div>
 
@@ -158,8 +179,6 @@
             <div class="meta-row">
               {% if profile.created_at %}Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
             </div>
-
-           
           </div>
         </div>
         {% endfor %}
@@ -179,6 +198,7 @@
   <script>
     let currentProfileId = null;
     let newImageFile = null;
+    let deleteProfileId = null;
 
     function openModal(event, profileId) {
       event.stopPropagation();
@@ -194,6 +214,9 @@
       document.getElementById('modalEmail').value = email;
       document.getElementById('modalError').textContent = '';
       document.getElementById('modalImageInput').value = '';
+
+      // ← this is the fix: store name on the delete button
+      document.getElementById('modalDeleteBtn').dataset.name = name;
 
       const preview = document.getElementById('modalAvatarPreview');
       const placeholder = document.getElementById('modalAvatarPlaceholder');
@@ -217,6 +240,53 @@
       document.getElementById('editModal').classList.remove('visible');
       currentProfileId = null;
       newImageFile = null;
+    }
+
+    function openDeleteModal(event, profileId, profileName) {
+      event.stopPropagation();
+      deleteProfileId = profileId;
+      document.getElementById('deleteProfileName').textContent = profileName;
+      document.getElementById('deleteError').textContent = '';
+      document.getElementById('deleteOverlay').classList.add('visible');
+      document.getElementById('deleteModal').classList.add('visible');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteOverlay').classList.remove('visible');
+      document.getElementById('deleteModal').classList.remove('visible');
+      deleteProfileId = null;
+    }
+
+    function openDeleteFromModal(event) {
+      const profileId = currentProfileId;
+      const name = document.getElementById('modalDeleteBtn').dataset.name;
+      closeModal();
+      openDeleteModal(event, profileId, name);
+    }
+
+    async function confirmDelete() {
+      const btn = document.getElementById('deleteBtn');
+      btn.textContent = 'Deleting…';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/delete_profile/${deleteProfileId}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok) {
+          closeDeleteModal();
+          location.reload();
+        } else {
+          const text = await res.text();
+          document.getElementById('deleteError').textContent = `Error: ${text}`;
+        }
+      } catch (e) {
+        document.getElementById('deleteError').textContent = 'Network error.';
+      }
+
+      btn.textContent = 'Delete';
+      btn.disabled = false;
     }
 
     function previewImage(event) {
@@ -267,16 +337,15 @@
     }
 
     function toggleCard(id) {
-        const card = document.getElementById(id);
-        const isOpen = card.classList.contains('open');
-
-        if (isOpen) {
-          card.classList.remove('open');
-          card.querySelector('.expand-btn').innerHTML = `Show stats <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-        } else {
-          card.classList.add('open');
-          card.querySelector('.expand-btn').innerHTML = `Hide stats <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="transform:rotate(180deg)"><path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-        }
+      const card = document.getElementById(id);
+      const isOpen = card.classList.contains('open');
+      if (isOpen) {
+        card.classList.remove('open');
+        card.querySelector('.expand-btn').innerHTML = `Show stats <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      } else {
+        card.classList.add('open');
+        card.querySelector('.expand-btn').innerHTML = `Hide stats <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="transform:rotate(180deg)"><path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      }
     }
 
     function sortCards(key, dir, btn) {
@@ -311,58 +380,54 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
-<script>
-  const socket = io();
-  socket.on("profile_created",        () => location.reload());
-  socket.on("profile_deleted",        () => location.reload());
-  socket.on("username_updated",       () => location.reload());
-  socket.on("profile_image_updated",  () => location.reload());
-  socket.on("friendship_added",       () => location.reload());
-  socket.on("friendship_removed",     () => location.reload());
-  socket.on("friend_request_sent",    () => location.reload());
-  socket.on("friend_request_updated", () => location.reload());
+  <script>
+    const socket = io();
+    socket.on("profile_created",        () => location.reload());
+    socket.on("profile_deleted",        () => location.reload());
+    socket.on("username_updated",       () => location.reload());
+    socket.on("profile_image_updated",  () => location.reload());
+    socket.on("friendship_added",       () => location.reload());
+    socket.on("friendship_removed",     () => location.reload());
+    socket.on("friend_request_sent",    () => location.reload());
+    socket.on("friend_request_updated", () => location.reload());
 
-  setInterval(async () => {
-    const res = await fetch("/session_check");
-    if (res.status === 401) window.location.href = "/";
-  }, 30000);
-</script>
-<script>
-  function toggleProfilePopup(e) {
-    e.stopPropagation();
-    document.getElementById('navPopup').classList.toggle('visible');
-  }
+    setInterval(async () => {
+      const res = await fetch("/session_check");
+      if (res.status === 401) window.location.href = "/";
+    }, 30000);
+  </script>
+  <script>
+    function toggleProfilePopup(e) {
+      e.stopPropagation();
+      document.getElementById('navPopup').classList.toggle('visible');
+    }
+    document.addEventListener('click', () => {
+      document.getElementById('navPopup')?.classList.remove('visible');
+    });
+  </script>
+  <script>
+    const expiresAt = new Date(Date.now() + {{ session_seconds }} * 1000);
+    let sessionExpired = false;
 
-  document.addEventListener('click', () => {
-    document.getElementById('navPopup')?.classList.remove('visible');
-  });
-</script>
-<script>
-  const expiresAt = new Date(Date.now() + {{ session_seconds }} * 1000);
-  let sessionExpired = false;
-
-  function updateTimer() {
-    if (sessionExpired) return;
-
-    const el = document.getElementById('sessionTimer');
-    const secondsLeft = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-
-    if (secondsLeft <= 0) {
-      sessionExpired = true;
-      el.textContent = '00:00';
-      window.location.href = '/dashlogout';
-      return;
+    function updateTimer() {
+      if (sessionExpired) return;
+      const el = document.getElementById('sessionTimer');
+      const secondsLeft = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      if (secondsLeft <= 0) {
+        sessionExpired = true;
+        el.textContent = '00:00';
+        window.location.href = '/dashlogout';
+        return;
+      }
+      const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+      const s = String(secondsLeft % 60).padStart(2, '0');
+      el.textContent = `${m}:${s}`;
+      if (secondsLeft <= 60) el.style.color = '#cc0000';
     }
 
-    const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-    const s = String(secondsLeft % 60).padStart(2, '0');
-    el.textContent = `${m}:${s}`;
-    if (secondsLeft <= 60) el.style.color = '#cc0000';
-  }
-
-  updateTimer();
-  setInterval(updateTimer, 1000);
-</script>
+    updateTimer();
+    setInterval(updateTimer, 1000);
+  </script>
 
 </body>
 </html>

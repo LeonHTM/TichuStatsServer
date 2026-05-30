@@ -50,7 +50,7 @@ def delete_game(game_id):
 
 
 @game_bp.route("/game/<int:game_id>/rounds", methods=["GET"])
-@jwt_or_session_required
+#@jwt_or_session_required
 def get_game_rounds(game_id):
     game = Game.query.get(game_id)
 

@@ -6,7 +6,6 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS
 import os
-import threading
 from routes.auth_routes import jwt_or_session_required
 
 profile_bp = Blueprint("profile", __name__)
@@ -80,43 +79,39 @@ def dashboard_update_profile(profile_id):
         profile.email = email
 
     image_updated = False
-    url_path = None
+    filepath = None
     if "image" in request.files:
         file = request.files["image"]
         if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(f"profile_{profile_id}.{file.filename.rsplit('.', 1)[1].lower()}")
             filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
-            # ✅ Store URL path, not OS path
-            url_path = f"uploads/profile_images/{filename}"
-            profile.profile_image_url = url_path
+
+            # Ensure file is fully flushed to disk before notifying clients
+            with open(filepath, "rb") as f:
+                f.flush()
+                os.fsync(f.fileno())
+
+            profile.profile_image_url = filepath
             image_updated = True
 
     db.session.commit()
 
     socketio.emit("username_updated", {"profile_id": profile_id, "name": profile.name})
-
-    if image_updated and url_path:
-        threading.Timer(1.5, lambda: socketio.emit(
-            "profile_image_updated",
-            {"profile_id": profile_id, "image_url": url_path}  # ✅ url_path not filepath
-        )).start()
+    if image_updated:
+        socketio.emit("profile_image_updated", {"profile_id": profile_id, "image_url": filepath})
 
     return "ok", 200
 
 @profile_bp.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
-@jwt_required()
+@jwt_or_session_required
 def delete_profile(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
-    if profile.profile_image_url:
-        # ✅ Reconstruct OS path from stored URL path for deletion
-        filename = profile.profile_image_url.split("/")[-1]
-        os_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-        if os.path.exists(os_path):
-            os.remove(os_path)
+    if profile.profile_image_url and os.path.exists(profile.profile_image_url):
+        os.remove(profile.profile_image_url)
 
     db.session.delete(profile)
     db.session.commit()
@@ -124,7 +119,7 @@ def delete_profile(profile_id):
     return jsonify({"message": f"Profile {profile_id} deleted"}), 200
 
 @profile_bp.route("/check_username/<string:username>", methods=["GET"])
-@jwt_required()
+#@jwt_required()
 def check_username(username):
     existing = Profile.query.filter_by(name=username).first()
     return jsonify({"available": existing is None})
@@ -170,17 +165,15 @@ def upload_profile_image(profile_id):
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    # ✅ Store URL path, not OS path — consistent with what Swift client expects
-    url_path = f"uploads/profile_images/{filename}"
-    profile.profile_image_url = url_path
-    db.session.commit()
+    # Ensure file is fully flushed to disk before notifying clients
+    with open(filepath, "rb") as f:
+        f.flush()
+        os.fsync(f.fileno())
 
-    # file.save() is synchronous so file is guaranteed on disk here
-    socketio.emit("profile_image_updated", {
-        "profile_id": profile_id,
-        "image_url": url_path
-    })
-    return jsonify({"message": "Image uploaded", "path": url_path}), 200
+    profile.profile_image_url = filepath
+    db.session.commit()
+    socketio.emit("profile_image_updated", {"profile_id": profile_id, "image_url": filepath})
+    return jsonify({"message": "Image uploaded", "path": filepath}), 200
 
 @profile_bp.route("/uploads/profile_images/<filename>", methods=["GET"])
 def serve_image(filename):
