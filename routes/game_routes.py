@@ -33,6 +33,44 @@ def add_game():
     return jsonify(game.to_dict()), 201
 
 
+
+@game_bp.route("/game/edit_player/<int:game_id>", methods=["PATCH"])
+@jwt_required()
+def game_edit_player(game_id):
+    game = Game.query.get(game_id)
+
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+
+    if game.current_points_team1 != 0 or game.current_points_team2 != 0:
+        return jsonify({"error": "Players can only be edited before the game has started (no points scored yet)"}), 409
+
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Missing data"}), 400
+
+    allowed_fields = {
+        "team1_player1_id",
+        "team1_player2_id",
+        "team2_player1_id",
+        "team2_player2_id",
+    }
+
+    updated_fields = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not updated_fields:
+        return jsonify({"error": "No valid player fields provided"}), 400
+
+    for field, value in updated_fields.items():
+        setattr(game, field, value)
+
+    db.session.commit()
+
+    socketio.emit("game_updated", game.to_dict())
+
+    return jsonify(game.to_dict()), 200
+
 @game_bp.route("/delete_game/<int:game_id>", methods=["DELETE"])
 @jwt_or_session_required
 def delete_game(game_id):

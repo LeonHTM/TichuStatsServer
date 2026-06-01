@@ -63,9 +63,15 @@ def create_profile():
     socketio.emit("profile_created", {"id": new_profile.id, "email": new_profile.email, "name": new_profile.name})
     return jsonify({"id": new_profile.id, "token": token}), 201
 
-@profile_bp.route("/dashboard/update_profile/<int:profile_id>", methods=["POST"])
+@profile_bp.route("/dashboard/update_profile/<profile_id>", methods=["POST"])
 @jwt_or_session_required
 def dashboard_update_profile(profile_id):
+
+    try:
+        profile_id = int(profile_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid profile ID"}), 400
+    
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404

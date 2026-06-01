@@ -902,12 +902,14 @@ main {
   font-family: var(--font-text);
   font-size: 15px;
   font-weight: 600;
+  border: 1px solid var(--#cc0000);
   color: #cc0000;
   cursor: pointer;
   letter-spacing: -0.224px;
 }
 .delete-btn:hover {
   background: #cc000025;
+  border: 1px solid var(--#cc000025);
 }
 
 .modal-actions .btn-primary {
@@ -916,6 +918,7 @@ main {
   height: 44px;
   font-size: 15px;
   width: 100%;
+  border: 1px solid var(--primary);
   padding: 12px;
 }
 
