@@ -49,12 +49,188 @@ def add_round():
         announced_big_tichu=data.get("announced_big_tichu", []),
         announced_pingu=data.get("announced_pingu", []),
     )
+    #First Tichu Announced
+    if round_obj.first_profile_id in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_big_tichu and round_obj.first_profile_id not in round_obj.announced_pingu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 100
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 100
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 100
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #First Big Tichu Announced
+    elif round_obj.first_profile_id in round_obj.announced_big_tichu and round_obj.first_profile_id not in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_pingu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 200
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 200
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 200
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #First Pingu Announced
+    elif round_obj.first_profile_id in round_obj.announced_pingu and round_obj.first_profile_id not in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 400
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 400
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 400
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Second Tichu Announced
+    if round_obj.second_profile_id in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_big_tichu and round_obj.second_profile_id not in round_obj.announced_pingu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Second Big Tichu Announced
+    elif round_obj.second_profile_id in round_obj.announced_big_tichu and round_obj.second_profile_id not in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_pingu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Second Pingu Announced
+    elif round_obj.second_profile_id in round_obj.announced_pingu and round_obj.second_profile_id not in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Third Tichu Announced
+    if round_obj.third_profile_id in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_big_tichu and round_obj.third_profile_id not in round_obj.announced_pingu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Third Big Tichu Announced
+    elif round_obj.third_profile_id in round_obj.announced_big_tichu and round_obj.third_profile_id not in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_pingu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Third Pingu Announced
+    elif round_obj.third_profile_id in round_obj.announced_pingu and round_obj.third_profile_id not in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Fourth Tichu Announced
+    if round_obj.fourth_profile_id in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_big_tichu and round_obj.fourth_profile_id not in round_obj.announced_pingu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Fourth Big Tichu Announced  
+    elif round_obj.fourth_profile_id in round_obj.announced_big_tichu and round_obj.fourth_profile_id not in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_pingu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Fourth Pingu Announced
+    elif round_obj.fourth_profile_id in round_obj.announced_pingu and round_obj.fourth_profile_id not in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+    
+    #Double Win Team 1   
+    if round_obj.double_win_team1 == True:
+        if round_obj.tichu_points_team1 == 100:
+            round_obj.round_points_team1 += 100
+        else:
+            print(f"DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints has {round_obj.tichu_points_team1}, Team 2 has {round_obj.tichu_points_team2}")
+            return jsonify({"error": "DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints"}), 404
+    #Double Win Team 2
+    if round_obj.double_win_team2 == True:
+        if round_obj.tichu_points_team2 == 100:
+            round_obj.round_points_team2 += 100
+        else:
+            print("DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints")
+            return jsonify({"error": "DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints"}), 404
+        
+    
 
     db.session.add(round_obj)
 
     # update game score automatically (important)
-    game.current_points_team1 += round_obj.round_points_team1
-    game.current_points_team2 += round_obj.round_points_team2
+    game.current_points_team1 += (round_obj.round_points_team1 + round_obj.tichu_points_team1)
+    game.current_points_team2 += (round_obj.round_points_team2 + round_obj.tichu_points_team2)
 
     db.session.commit()
 
@@ -88,12 +264,187 @@ def edit_round(round_id):
         if field in data:
             setattr(round_obj, field, data[field])
 
+    #First Tichu Announced
+    if round_obj.first_profile_id in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_big_tichu and round_obj.first_profile_id not in round_obj.announced_pingu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 100
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 100
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 100
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #First Big Tichu Announced
+    elif round_obj.first_profile_id in round_obj.announced_big_tichu and round_obj.first_profile_id not in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_pingu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 200
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 200
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 200
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #First Pingu Announced
+    elif round_obj.first_profile_id in round_obj.announced_pingu and round_obj.first_profile_id not in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.first_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 += 400
+        elif round_obj.first_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 += 400
+        elif round_obj.first_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 += 400
+        elif round_obj.first_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 += 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Second Tichu Announced
+    if round_obj.second_profile_id in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_big_tichu and round_obj.second_profile_id not in round_obj.announced_pingu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Second Big Tichu Announced
+    elif round_obj.second_profile_id in round_obj.announced_big_tichu and round_obj.second_profile_id not in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_pingu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Second Pingu Announced
+    elif round_obj.second_profile_id in round_obj.announced_pingu and round_obj.second_profile_id not in round_obj.announced_tichu and round_obj.second_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.second_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.second_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.second_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.second_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Third Tichu Announced
+    if round_obj.third_profile_id in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_big_tichu and round_obj.third_profile_id not in round_obj.announced_pingu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Third Big Tichu Announced
+    elif round_obj.third_profile_id in round_obj.announced_big_tichu and round_obj.third_profile_id not in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_pingu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Third Pingu Announced
+    elif round_obj.third_profile_id in round_obj.announced_pingu and round_obj.third_profile_id not in round_obj.announced_tichu and round_obj.third_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.third_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.third_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.third_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.third_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
+
+    #Fourth Tichu Announced
+    if round_obj.fourth_profile_id in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_big_tichu and round_obj.fourth_profile_id not in round_obj.announced_pingu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 100
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 100
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 100
+        else:
+            print("TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "TICHU ERROR: Player matched no Player in Game"}), 404
+    #Fourth Big Tichu Announced  
+    elif round_obj.fourth_profile_id in round_obj.announced_big_tichu and round_obj.fourth_profile_id not in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_pingu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 200
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 200
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 200
+        else:
+            print("BIG TICHU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "BIG TICHU ERROR: Player matched no Player in Game"}), 404
+    #Fourth Pingu Announced
+    elif round_obj.fourth_profile_id in round_obj.announced_pingu and round_obj.fourth_profile_id not in round_obj.announced_tichu and round_obj.fourth_profile_id not in round_obj.announced_big_tichu:
+        if round_obj.fourth_profile_id == game.team1_player1_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.fourth_profile_id == game.team1_player2_id:
+            round_obj.round_points_team1 -= 400
+        elif round_obj.fourth_profile_id == game.team2_player1_id:
+            round_obj.round_points_team2 -= 400
+        elif round_obj.fourth_profile_id == game.team2_player2_id:
+            round_obj.round_points_team2 -= 400
+        else:
+            print("PINGU ERROR: Player matched no Player in Game")
+            return jsonify({"error": "PINGU ERROR: Player matched no Player in Game"}), 404
     
+    #Double Win Team 1   
+    if round_obj.double_win_team1 == True:
+        if round_obj.tichu_points_team1 == 100:
+            round_obj.round_points_team1 += 100
+        else:
+            print(f"DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints has {round_obj.tichu_points_team1}, Team 2 has {round_obj.tichu_points_team2}")
+            return jsonify({"error": "DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints"}), 404
+    #Double Win Team 2
+    if round_obj.double_win_team2 == True:
+        if round_obj.tichu_points_team2 == 100:
+            round_obj.round_points_team2 += 100
+        else:
+            print("DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints")
+            return jsonify({"error": "DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints"}), 404
+
+
     game = round_obj.game
     recalculate(game.id)
 
-    game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
-    game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
+    game.current_points_team1 = sum(r.round_points_team1 + r.tichu_points_team1 for r in game.rounds)
+    game.current_points_team2 = sum(r.round_points_team2 + r.tichu_points_team2 for r in game.rounds)
 
     db.session.commit()
 
