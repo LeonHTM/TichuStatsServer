@@ -1,7 +1,7 @@
 import jwt
 import time
 import httpx
-
+from logic.profileLogic import UserDeviceToken
 from config import (
     APNS_TEAM_ID,
     APNS_KEY,
@@ -74,3 +74,49 @@ def send_push_notification(
         print(f"APNs status: {response.status_code}")
         print(f"APNs response: {response.text}")
         return response.status_code == 200
+    
+
+def send_push_notifications_to_user(
+    device_tokens: list[str],
+    title: str,
+    body: str,
+    sender_name: str,
+    sender_id: str,
+    conversation_id: str,
+    image_url: str = None,
+    data: dict = {}):
+            results = []
+            for token in device_tokens:
+                result = send_push_notification(
+                    device_token=token,
+                    title=title,
+                    body=body,
+                    sender_name=sender_name,
+                    sender_id=sender_id,
+                    conversation_id=conversation_id,
+                    image_url=image_url,
+                    data=data
+                )
+                results.append(result)
+            return all(results)
+    
+
+# Helper to get all tokens for a user
+def get_device_tokens(profile_id: int) -> list[str]:
+    tokens = UserDeviceToken.query.filter_by(user_id=profile_id).all()
+    return [t.device_token for t in tokens]
+
+# Helper to notify a user on all devices
+def notify_user(profile_id: int, title: str, body: str, sender_name: str,
+                sender_id: str, conversation_id: str, image_url: str = None):
+    tokens = get_device_tokens(profile_id)
+    if tokens:
+        send_push_notifications_to_user(
+            device_tokens=tokens,
+            title=title,
+            body=body,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            conversation_id=conversation_id,
+            image_url=image_url
+        )

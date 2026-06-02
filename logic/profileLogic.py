@@ -31,7 +31,8 @@ class Profile(db.Model):
     big_gambler = db.Column(db.Integer, default=0)
     pingu_gambler = db.Column(db.Integer, default=0)
     bomber = db.Column(db.Integer, default=0)
-    device_token = db.Column(db.String(255))
+
+    device_tokens = db.relationship("UserDeviceToken", back_populates="profile", cascade="all, delete-orphan")
 
     # Timestamps (optional but recommended)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -121,3 +122,16 @@ class FriendRequest(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), nullable=False)
     status = db.Column(db.Enum("pending", "accepted", "rejected"), default="pending")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
+
+class UserDeviceToken(db.Model):
+    __tablename__ = "user_device_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
+    device_token = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    profile = db.relationship("Profile", back_populates="device_tokens")

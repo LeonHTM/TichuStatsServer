@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
-from logic.profileLogic import Profile
+from logic.profileLogic import Profile, UserDeviceToken
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS
@@ -186,39 +186,62 @@ def serve_image(filename):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
 
 @profile_bp.route("/logout/<int:profile_id>", methods=["POST"])
-@jwt_required()
 def logout(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
-    profile.device_token = None
+
+    data = request.get_json() or {}
+    device_token = data.get("device_token")
+
+    if device_token:
+        # Remove only this device's token
+        UserDeviceToken.query.filter_by(
+            user_id=profile_id,
+            device_token=device_token
+        ).delete()
+    else:
+        # Remove all tokens for this user (full logout)
+        UserDeviceToken.query.filter_by(user_id=profile_id).delete()
+
     db.session.commit()
     return jsonify({"success": True}), 200
 
 @profile_bp.route("/register_device/<int:profile_id>", methods=["POST"])
-@jwt_required()
 def register_device(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
+
     data = request.get_json()
     device_token = data.get("device_token")
     if not device_token:
         return jsonify({"error": "device_token is required"}), 400
-    profile.device_token = device_token
-    db.session.commit()
+
+    # Insert or ignore if already exists (unique constraint handles duplicates)
+    existing = UserDeviceToken.query.filter_by(
+        user_id=profile_id,
+        device_token=device_token
+    ).first()
+
+    if not existing:
+        new_token = UserDeviceToken(user_id=profile_id, device_token=device_token)
+        db.session.add(new_token)
+        db.session.commit()
+
     return jsonify({"success": True}), 200
 
 @profile_bp.route("/send_notification/<int:profile_id>", methods=["POST"])
 @jwt_required()
 def send_notification(profile_id):
     profile = Profile.query.get(profile_id)
-    if not profile or not profile.device_token:
-        return jsonify({"error": "Profile not found or no device token"}), 404
-    from logic.notificationLogic import send_push_notification
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    from logic.notificationLogic import notify_user
     data = request.get_json()
-    send_push_notification(
-        device_token=profile.device_token,
+    notify_user(
+        profile_id=profile_id,
         title=data.get("title", ""),
         body=data.get("body", ""),
         sender_name=data.get("sender_name", ""),

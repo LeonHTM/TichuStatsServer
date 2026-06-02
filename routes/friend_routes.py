@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile, ProfileFriend, FriendRequest
-from logic.notificationLogic import send_push_notification
+from logic.notificationLogic import notify_user
 from config import BASE_URL
 
 friend_bp = Blueprint("friend", __name__)
@@ -46,18 +46,17 @@ def add_friend(profile_id, friend_id):
 
     socketio.emit("friendship_added", {"profile_id": profile_id, "friend_id": friend_id})
 
-    if friend.device_token:
-        image_url = f"{BASE_URL}/{profile.profile_image_url}" if profile.profile_image_url else None
-        conversation_id = f"friends-{min(profile_id, friend_id)}-{max(profile_id, friend_id)}"
-        send_push_notification(
-            device_token=friend.device_token,
-            title="Friend Request Accepted",
-            body=f"You and {profile.name} are now friends",
-            sender_name=profile.name,
-            sender_id=str(profile_id),
-            conversation_id=conversation_id,
-            image_url=image_url
-        )
+    conversation_id = f"friends-{min(profile_id, friend_id)}-{max(profile_id, friend_id)}"
+    image_url = f"{BASE_URL}/{profile.profile_image_url}" if profile.profile_image_url else None
+    notify_user(
+        profile_id=friend_id,
+        title="Friend Request Accepted",
+        body=f"You and {profile.name} are now friends",
+        sender_name=profile.name,
+        sender_id=str(profile_id),
+        conversation_id=conversation_id,
+        image_url=image_url
+    )
     return jsonify({"message": "Friendship created"}), 201
 
 @friend_bp.route("/delete_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["DELETE"])
@@ -102,18 +101,19 @@ def send_friend_request(sender_id, receiver_id):
             db.session.commit()
 
             socketio.emit("friend_request_updated", {"sender_id": sender_id, "receiver_id": receiver_id, "status": "accepted"})
+            socketio.emit("remove_friend_request_notification", {"user_id": receiver_id, "sender_id": sender_id})
+            socketio.emit("remove_friend_request_notification", {"user_id": sender_id, "sender_id": receiver_id})
 
-            if receiver.device_token:
-                image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
-                send_push_notification(
-                    device_token=receiver.device_token,
-                    title="Friend Request Accepted",
-                    body=f"You and {sender.name} are now friends",
-                    sender_name=sender.name,
-                    sender_id=str(sender_id),
-                    conversation_id=conversation_id,
-                    image_url=image_url
-                )
+            image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
+            notify_user(
+                profile_id=receiver_id,
+                title="Friend Request Accepted",
+                body=f"You and {sender.name} are now friends",
+                sender_name=sender.name,
+                sender_id=str(sender_id),
+                conversation_id=conversation_id,
+                image_url=image_url
+            )
             return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
 
         req = FriendRequest(sender_id=sender_id, receiver_id=receiver_id, status="pending")
@@ -126,17 +126,16 @@ def send_friend_request(sender_id, receiver_id):
 
     socketio.emit("friend_request_sent", {"id": req.id, "sender_id": sender_id, "receiver_id": receiver_id})
 
-    if receiver.device_token:
-        image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
-        send_push_notification(
-            device_token=receiver.device_token,
-            title="New Friend Request",
-            body=f"{sender.name} sent you a friend request",
-            sender_name=sender.name,
-            sender_id=str(sender_id),
-            conversation_id=conversation_id,
-            image_url=image_url
-        )
+    image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
+    notify_user(
+        profile_id=receiver_id,
+        title="New Friend Request",
+        body=f"{sender.name} sent you a friend request",
+        sender_name=sender.name,
+        sender_id=str(sender_id),
+        conversation_id=conversation_id,
+        image_url=image_url
+    )
     return jsonify({"message": "Friend request sent"}), 201
 
 @friend_bp.route("/manage_requests/<int:receiver_id>/from/<int:sender_id>", methods=["PATCH"])
@@ -170,11 +169,11 @@ def respond_to_request(receiver_id, sender_id):
 
     socketio.emit("friend_request_updated", {"sender_id": sender_id, "receiver_id": receiver_id, "status": action})
 
-    if action == "accepted" and sender and sender.device_token:
+    if action == "accepted" and sender:
         conversation_id = f"friends-{min(sender_id, receiver_id)}-{max(sender_id, receiver_id)}"
         image_url = f"{BASE_URL}/{receiver.profile_image_url}" if receiver and receiver.profile_image_url else None
-        send_push_notification(
-            device_token=sender.device_token,
+        notify_user(
+            profile_id=sender_id,
             title="Friend Request Accepted",
             body=f"{receiver.name} accepted your friend request",
             sender_name=receiver.name,
