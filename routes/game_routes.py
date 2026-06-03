@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile
-from logic.gameLogic import Game, recalculate
+from logic.gameLogic import Game, recalculate, EloHistory
 from logic.roundLogic import Round
 from routes.auth_routes import jwt_or_session_required
 
@@ -79,10 +79,20 @@ def delete_game(game_id):
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
+    # Revert Elo changes made by this game
+    updated_profiles = []
+    elo_entries = EloHistory.query.filter_by(game_id=game_id).all()
+    for entry in elo_entries:
+        profile = Profile.query.get(entry.profile_id)
+        if profile:
+            profile.elo -= entry.elo_change
+            updated_profiles.append({"id": profile.id, "elo": profile.elo})
+
     db.session.delete(game)
     db.session.commit()
 
     socketio.emit("game_deleted", {"game_id": game_id})
+    socketio.emit("elo_updated", {"players": updated_profiles})
 
     return jsonify({"success": True}), 200
 

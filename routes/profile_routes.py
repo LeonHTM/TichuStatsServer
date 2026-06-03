@@ -249,3 +249,27 @@ def send_notification(profile_id):
         conversation_id=data.get("conversation_id", "default")
     )
     return jsonify({"success": True}), 200
+
+
+
+@profile_bp.route("/elo_history/<int:profile_id>", methods=["GET"])
+@jwt_or_session_required
+def get_elo_history(profile_id):
+    from logic.gameLogic import EloHistory
+
+    history = (
+        EloHistory.query
+        .filter_by(profile_id=profile_id)
+        .order_by(EloHistory.changed_at.asc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": entry.id,
+            "game_id": entry.game_id,
+            "elo_change": entry.elo_change,
+            "changed_at": entry.changed_at.isoformat() if entry.changed_at else None,
+        }
+        for entry in history
+    ]), 200

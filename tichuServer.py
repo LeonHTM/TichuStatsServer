@@ -1,5 +1,3 @@
-#from gevent import monkey
-#monkey.patch_all()
 
 from flask import Flask, request, redirect, session, render_template
 from flask_jwt_extended import create_access_token

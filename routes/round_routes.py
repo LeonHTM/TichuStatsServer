@@ -264,6 +264,11 @@ def edit_round(round_id):
         if field in data:
             setattr(round_obj, field, data[field])
 
+    #Reset Round Points
+    round_obj.round_points_team1 = 0
+    round_obj.round_points_team2 = 0
+
+
     #First Tichu Announced
     if round_obj.first_profile_id in round_obj.announced_tichu and round_obj.first_profile_id not in round_obj.announced_big_tichu and round_obj.first_profile_id not in round_obj.announced_pingu:
         if round_obj.first_profile_id == game.team1_player1_id:
