@@ -2,7 +2,7 @@ from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
 from extensions import db, socketio
 from logic.roundLogic import Round
-from logic.profileLogic import Profile
+from logic.profileLogic import Profile, calculateStats
 
 class Game(db.Model):
     __tablename__ = "games"
@@ -239,6 +239,17 @@ def calculate_elo(game_id,winner):
     db.session.add(EloHistory(profile_id=team1_player2.id, game_id=game_id, elo_change=delta1))
     db.session.add(EloHistory(profile_id=team2_player1.id, game_id=game_id, elo_change=delta2))
     db.session.add(EloHistory(profile_id=team2_player2.id, game_id=game_id, elo_change=delta2))
+
+    playerIds = [team1_player1.id, team1_player2.id, team2_player1.id,team2_player2.id]
+
+    for playerId in playerIds:
+
+        calculateStats(playerId,"all_time")
+        calculateStats(playerId,"year")
+        calculateStats(playerId,"month")
+        calculateStats(playerId,"week")
+        calculateStats(playerId,"day")
+       
 
     db.session.commit()
 

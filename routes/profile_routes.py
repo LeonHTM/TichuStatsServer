@@ -8,6 +8,7 @@ from config import SESSION_MINUTES, ALLOWED_EXTENSIONS
 import os
 from routes.auth_routes import jwt_or_session_required
 
+
 profile_bp = Blueprint("profile", __name__)
 
 def allowed_file(filename):
