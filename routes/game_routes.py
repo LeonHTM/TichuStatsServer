@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile, calculateStats
-from logic.gameLogic import Game, recalculate, EloHistory
+from logic.gameLogic import Game, recalculate, EloHistory, finish_game
 from logic.roundLogic import Round
 from routes.auth_routes import jwt_or_session_required
 
@@ -15,6 +15,28 @@ def add_game():
 
     if not data:
         return jsonify({"error": "Missing data"}), 400
+
+    player_ids = [
+        data.get("team1_player1_id"),
+        data.get("team1_player2_id"),
+        data.get("team2_player1_id"),
+        data.get("team2_player2_id"),
+    ]
+
+   
+    real_ids = [pid for pid in player_ids if pid is not None and pid > 0]
+    if real_ids:
+        conflict = Game.query.filter(
+            Game.winner == None,
+            db.or_(
+                Game.team1_player1_id.in_(real_ids),
+                Game.team1_player2_id.in_(real_ids),
+                Game.team2_player1_id.in_(real_ids),
+                Game.team2_player2_id.in_(real_ids),
+            )
+        ).first()
+        if conflict:
+            return jsonify({"error": "One or more players are already in an open game"}), 409
 
     game = Game(
         target=data.get("target", 1000),
@@ -33,6 +55,25 @@ def add_game():
     return jsonify(game.to_dict()), 201
 
 
+@game_bp.route("/finish_game/<int:game_id>", methods=["POST"])
+@jwt_or_session_required
+def finish_game_route(game_id):
+    from logic.gameLogic import Game
+    
+    game = Game.query.get(game_id)
+    if not game:
+        print("Game not found")
+        return jsonify({"error": "Game not found"}), 404
+    
+    if game.calculated == True:
+        print("Game already Calculated")
+        print(f"{game.calculated}")
+        return jsonify({"error": "Game already finished"}), 400
+
+    recalculate(game_id)
+    finish_game(game_id)
+    socketio.emit("game_finished", {"game_id": game_id})
+    return jsonify({"success": True}), 200
 
 @game_bp.route("/game/edit_player/<int:game_id>", methods=["PATCH"])
 @jwt_required()

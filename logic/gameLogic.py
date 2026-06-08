@@ -23,6 +23,7 @@ class Game(db.Model):
 
     winner = db.Column(db.Integer)
     rated = db.Column(db.Boolean, default=None, nullable=True)
+    calculated = db.Column(db.Boolean, default=False)
 
     rounds = db.relationship("Round", back_populates="game", lazy=True, cascade="all, delete-orphan")
 
@@ -127,14 +128,15 @@ def recalculate(game_id):
                     game.current_points_team1 >= game.target and
                     game.current_points_team1 > game.current_points_team2
                 ):
-                    finish_game(game_id)
+                    game.winner = 1
                     
 
                 elif (
                     game.current_points_team2 >= game.target and
                     game.current_points_team2 > game.current_points_team1
-                ):
-                    finish_game(game_id)
+                ):  
+                    print("would have finished")
+                    game.winner = 2
 
                 r.bool_win_round = True
 
@@ -168,12 +170,12 @@ def finish_game(game_id):
         return jsonify({"error": "Game not found"}), 404
     
     #Determine Game Winner
-    if (game.current_points_team1 >= game.target and game.current_points_team1 > game.current_points_team2):
+    """if (game.current_points_team1 >= game.target and game.current_points_team1 > game.current_points_team2):
         game.winner = 1
 
 
     elif (game.current_points_team2 >= game.target and game.current_points_team2 > game.current_points_team1):
-        game.winner = 2
+        game.winner = 2"""
 
     players = [
         game.team1_player1_id,
@@ -240,10 +242,15 @@ def calculate_elo(game_id,winner):
     db.session.add(EloHistory(profile_id=team2_player1.id, game_id=game_id, elo_change=delta2))
     db.session.add(EloHistory(profile_id=team2_player2.id, game_id=game_id, elo_change=delta2))
 
+
+    game.calculated = True
+
+
     playerIds = [team1_player1.id, team1_player2.id, team2_player1.id,team2_player2.id]
 
-    for playerId in playerIds:
 
+    #Calculate the Stats for the Player in all possible timeframes
+    for playerId in playerIds:
         calculateStats(playerId,"all_time")
         calculateStats(playerId,"year")
         calculateStats(playerId,"month")

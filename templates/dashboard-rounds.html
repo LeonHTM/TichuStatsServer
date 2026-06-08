@@ -129,34 +129,35 @@
           </div>
 
           <div class="card-body">
+            {% set s = profile.all_time_stats %}
             <div class="section-label">Performance</div>
             <div class="stat-row">
               <span class="stat-label">Win rate</span>
-              <span class="stat-value highlight">{{ profile.winner_percentage }}%</span>
+              <span class="stat-value highlight">
+                {{ "%.1f"|format((s.winner_percentage * 100) if s else 0) }}%
+              </span>
             </div>
             <div class="stat-row">
               <span class="stat-label">Tichu master</span>
-              <span class="stat-value">{{ profile.tichu_master }}</span>
+              <span class="stat-value">{{ s.tichu_master if s else 0 }}</span>
             </div>
 
             <div class="section-label">Stats</div>
             <div class="badge-row">
-              <span class="badge {% if profile.gambler > 0 %}earned{% endif %}">Gambler {{ profile.gambler }}</span>
-              <span class="badge {% if profile.big_gambler > 0 %}earned{% endif %}">Big Gambler {{ profile.big_gambler }}</span>
-              <span class="badge {% if profile.pingu_gambler > 0 %}earned{% endif %}">Pingu Gambler {{ profile.pingu_gambler }}</span>
-              <span class="badge {% if profile.visionary > 0 %}earned{% endif %}">Visionary {{ profile.visionary }}</span>
-              <span class="badge {% if profile.addict > 0 %}earned{% endif %}">Addict {{ profile.addict }}</span>
-              <span class="badge {% if profile.teamplayer > 0 %}earned{% endif %}">Team Player {{ profile.teamplayer }}</span>
-              <span class="badge {% if profile.announcer > 0 %}earned{% endif %}">Announcer {{ profile.announcer }}</span>
-              <span class="badge {% if profile.saboteur > 0 %}earned{% endif %}">Saboteur {{ profile.saboteur }}</span>
-              <span class="badge {% if profile.bomber > 0 %}earned{% endif %}">Bomber {{ profile.bomber }}</span>
+              <span class="badge {% if s and s.gambler > 0 %}earned{% endif %}">Gambler {{ s.gambler if s else 0 }}</span>
+              <span class="badge {% if s and s.big_gambler > 0 %}earned{% endif %}">Big Gambler {{ s.big_gambler if s else 0 }}</span>
+              <span class="badge {% if s and s.pingu_gambler > 0 %}earned{% endif %}">Pingu Gambler {{ s.pingu_gambler if s else 0 }}</span>
+              <span class="badge {% if s and s.visionary > 0 %}earned{% endif %}">Visionary {{ s.visionary if s else 0 }}</span>
+              <span class="badge {% if s and s.addict > 0 %}earned{% endif %}">Addict {{ s.addict if s else 0 }}</span>
+              <span class="badge {% if s and s.teamplayer > 0 %}earned{% endif %}">Team Player {{ s.teamplayer if s else 0 }}</span>
+              <span class="badge {% if s and s.announcer > 0 %}earned{% endif %}">Announcer {{ s.announcer if s else 0 }}</span>
+              <span class="badge {% if s and s.saboteur > 0 %}earned{% endif %}">Saboteur {{ s.saboteur if s else 0 }}</span>
+              <span class="badge {% if s and s.bomber > 0 %}earned{% endif %}">Bomber {{ s.bomber if s else 0 }}</span>
             </div>
 
             <div class="meta-row">
               {% if profile.created_at %}Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
             </div>
-
-           
           </div>
         </div>
         {% endfor %}

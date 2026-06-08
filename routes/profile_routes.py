@@ -18,10 +18,33 @@ def allowed_file(filename):
 @jwt_or_session_required
 def get_profiles():
     if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
+        from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
+        for profile in profiles:
+            profile.all_time_stats = ProfileStats.query.filter_by(
+                profile_id=profile.id, timeframe="all_time"
+            ).first()
         return render_template("dashboard-profiles.html", profiles=profiles, session_seconds=0)
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
+
+
+@profile_bp.route("/profile/<int:profile_id>/in_open_game", methods=["GET"])
+@jwt_or_session_required
+def is_in_open_game(profile_id):
+    from logic.gameLogic import Game
+
+    open_game = Game.query.filter(
+        Game.winner == None,
+        db.or_(
+            Game.team1_player1_id == profile_id,
+            Game.team1_player2_id == profile_id,
+            Game.team2_player1_id == profile_id,
+            Game.team2_player2_id == profile_id,
+        )
+    ).first()
+
+    return jsonify(open_game is not None), 200
 
 @profile_bp.route("/profilesM", methods=["GET"])
 @jwt_or_session_required
@@ -35,7 +58,8 @@ def get_profilesstats(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
-    return jsonify(profile.to_dict_stats())
+    timeframe = request.args.get("timeframe", "all_time")
+    return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
 @profile_bp.route("/profilessimple", methods=["GET"])
 @jwt_required()

@@ -240,9 +240,10 @@ def add_round():
 
 
 @round_bp.route("/edit_round/<int:round_id>", methods=["PATCH"])
-#@jwt_required()
+@jwt_required()
 def edit_round(round_id):
     round_obj = Round.query.get(round_id)
+    game = round_obj.game
 
     if not round_obj:
         return jsonify({"error": "Round not found"}), 404
@@ -445,7 +446,7 @@ def edit_round(round_id):
             return jsonify({"error": "DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints"}), 404
 
 
-    game = round_obj.game
+    
     recalculate(game.id)
 
     game.current_points_team1 = sum(r.round_points_team1 + r.tichu_points_team1 for r in game.rounds)

@@ -56,10 +56,15 @@ def create_app():
         remaining = int(SESSION_MINUTES * 60 - elapsed)
 
         if remaining <= 0:
-            session.clear()  # kill session
-            return render_template("login.html")  # or redirect(url_for("login"))
+            session.clear()
+            return render_template("login.html")
 
+        from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
+        for profile in profiles:
+            profile.all_time_stats = ProfileStats.query.filter_by(
+                profile_id=profile.id, timeframe="all_time"
+            ).first()
 
         return render_template(
             "dashboard-profiles.html",
@@ -86,7 +91,12 @@ def create_app():
     @app.route("/dashboard/profiles", methods=["GET"])
     @jwt_or_session_required
     def dashboardprofiles():
+        from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
+        for profile in profiles:
+            profile.all_time_stats = ProfileStats.query.filter_by(
+                profile_id=profile.id, timeframe="all_time"
+            ).first()
 
         remaining = 0
         expires_at_str = session.get("expires_at")
@@ -99,39 +109,68 @@ def create_app():
     @app.route("/dashboard/games", methods=["GET"])
     @jwt_or_session_required
     def dashboard_games():
+        from logic.roundLogic import Round
+
         games = Game.query.order_by(Game.date.desc()).all()
-        
-        # Resolve player names
+
         profile_ids = set()
         for g in games:
             for pid in [g.team1_player1_id, g.team1_player2_id, g.team2_player1_id, g.team2_player2_id]:
                 if pid:
                     profile_ids.add(pid)
-        
+
         profiles = Profile.query.filter(Profile.id.in_(profile_ids)).all()
         name_map = {p.id: (p.name or f"ID {p.id}") for p in profiles}
-        
+
+        game_ids = [g.id for g in games]
+
+
+        all_rounds = Round.query.filter(
+            Round.game_id.in_(game_ids),
+            Round.bool_win_round == True
+        ).order_by(Round.round_order.asc()).all()
+
+        rounds_by_game = {}
+        for r in all_rounds:
+            rounds_by_game.setdefault(r.game_id, []).append({
+                "order":      r.round_order,
+                "round_pts1": r.round_points_team1,
+                "round_pts2": r.round_points_team2,
+                "tichu1":     r.tichu_points_team1,
+                "tichu2":     r.tichu_points_team2,
+                "double1":    r.double_win_team1,
+                "double2":    r.double_win_team2,
+                "win_round":  r.bool_win_round,
+                "tichu":      r.announced_tichu or [],
+                "big_tichu":  r.announced_big_tichu or [],
+                "pingu":      r.announced_pingu or [],
+                "bombs1":     r.first_bombs,
+                "bombs2":     r.second_bombs,
+                "bombs3":     r.third_bombs,
+                "bombs4":     r.fourth_bombs,
+            })
+
         games_data = []
         for g in games:
             games_data.append({
-                "id": g.id,
-                "date": g.date,
-                "target": g.target,
+                "id":           g.id,
+                "date":         g.date,
+                "target":       g.target,
                 "allow_pingus": g.allow_pingus,
-                "team1_p1": name_map.get(g.team1_player1_id, "?"),
-                "team1_p2": name_map.get(g.team1_player2_id, "?"),
-                "team2_p1": name_map.get(g.team2_player1_id, "?"),
-                "team2_p2": name_map.get(g.team2_player2_id, "?"),
-                "team1_p1_id": g.team1_player1_id,
-                "team1_p2_id": g.team1_player2_id,
-                "team2_p1_id": g.team2_player1_id,
-                "team2_p2_id": g.team2_player2_id,
-                "points1": g.current_points_team1,
-                "points2": g.current_points_team2,
-                "winner": g.winner,
+                "team1_p1":     name_map.get(g.team1_player1_id, "?"),
+                "team1_p2":     name_map.get(g.team1_player2_id, "?"),
+                "team2_p1":     name_map.get(g.team2_player1_id, "?"),
+                "team2_p2":     name_map.get(g.team2_player2_id, "?"),
+                "team1_p1_id":  g.team1_player1_id,
+                "team1_p2_id":  g.team1_player2_id,
+                "team2_p1_id":  g.team2_player1_id,
+                "team2_p2_id":  g.team2_player2_id,
+                "points1":      g.current_points_team1,
+                "points2":      g.current_points_team2,
+                "winner":       g.winner,
+                "rounds":       rounds_by_game.get(g.id, []),
             })
 
-        
         remaining = 0
         expires_at_str = session.get("expires_at")
         if expires_at_str:
@@ -143,7 +182,12 @@ def create_app():
     @app.route("/dashboard/rounds", methods=["GET"])
     @jwt_or_session_required
     def dashboardrounds():
+        from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
+        for profile in profiles:
+            profile.all_time_stats = ProfileStats.query.filter_by(
+                profile_id=profile.id, timeframe="all_time"
+            ).first()
 
         remaining = 0
         expires_at_str = session.get("expires_at")
