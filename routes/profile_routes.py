@@ -1,18 +1,22 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
-from logic.profileLogic import Profile, UserDeviceToken
+from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
-from config import SESSION_MINUTES, ALLOWED_EXTENSIONS
+from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
 import os
-from routes.auth_routes import jwt_or_session_required
+from routes.auth_routes import jwt_or_session_required, app_token_required
+from logic.gameLogic import EloHistory
 
 
 profile_bp = Blueprint("profile", __name__)
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+
 
 @profile_bp.route("/profiles", methods=["GET"])
 @jwt_or_session_required
@@ -46,6 +50,64 @@ def is_in_open_game(profile_id):
 
     return jsonify(open_game is not None), 200
 
+@profile_bp.route("/profile/<int:profile_id>/settings", methods=["GET"])
+@jwt_or_session_required
+def get_profile_settings(profile_id):
+    settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
+    if not settings:
+        return jsonify({
+            "user_id": profile_id,
+            "default_target": 1000,
+            "show_pingu": True,
+            "drag_mode": False,
+            "show_all_profiles": False
+        }), 200
+    return jsonify(settings.to_dict()), 200
+
+
+@profile_bp.route("/profile/<int:profile_id>/settings", methods=["PATCH"])
+@jwt_or_session_required
+def update_profile_settings(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    data = request.get_json()
+    print(f"update_profile_settings: profile_id={profile_id}, data={data}")
+
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
+    print(f"update_profile_settings: existing settings={settings}")
+
+    if not settings:
+        settings = ProfileSettings(user_id=profile_id)
+        db.session.add(settings)
+        print("update_profile_settings: created new settings row")
+
+    if "default_target" in data:
+        settings.default_target = data["default_target"]
+    if "show_pingu" in data:
+        settings.show_pingu = data["show_pingu"]
+    if "drag_mode" in data:
+        settings.drag_mode = data["drag_mode"]
+    if "show_all_players" in data:
+        settings.show_all_players = data["show_all_players"]
+
+    print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}")
+
+    try:
+        db.session.commit()
+        print("update_profile_settings: commit successful")
+    except Exception as e:
+        db.session.rollback()
+        print(f"update_profile_settings: commit FAILED: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify(settings.to_dict()), 200
+
+
 @profile_bp.route("/profilesM", methods=["GET"])
 @jwt_or_session_required
 def get_profilesM():
@@ -61,6 +123,15 @@ def get_profilesstats(profile_id):
     timeframe = request.args.get("timeframe", "all_time")
     return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
+
+@profile_bp.route("/profile/<int:profile_id>/is_admin", methods=["GET"])
+@jwt_or_session_required
+def is_admin(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+    return jsonify({"is_admin": profile.is_admin}), 200
+
 @profile_bp.route("/profilessimple", methods=["GET"])
 @jwt_required()
 def get_profilessimple():
@@ -68,6 +139,7 @@ def get_profilessimple():
     return jsonify([p.to_dict_simple() for p in profiles])
 
 @profile_bp.route("/add_profile", methods=["POST"])
+@app_token_required
 def create_profile():
     data = request.get_json()
     if not data or not data.get("email"):
@@ -81,6 +153,9 @@ def create_profile():
 
     new_profile = Profile(email=data["email"], name=data.get("name"))
     db.session.add(new_profile)
+    db.session.flush()
+
+    db.session.add(EloHistory(profile_id=new_profile.id, game_id=None, elo_change=0))
     db.session.commit()
 
     from flask_jwt_extended import create_access_token
@@ -91,7 +166,6 @@ def create_profile():
 @profile_bp.route("/dashboard/update_profile/<profile_id>", methods=["POST"])
 @jwt_or_session_required
 def dashboard_update_profile(profile_id):
-
     try:
         profile_id = int(profile_id)
     except (TypeError, ValueError):
@@ -103,11 +177,14 @@ def dashboard_update_profile(profile_id):
 
     name = request.form.get("name")
     email = request.form.get("email")
+    is_admin = request.form.get("is_admin")
 
     if name:
         profile.name = name
     if email:
         profile.email = email
+    if is_admin is not None:
+        profile.is_admin = is_admin.lower() == "true"
 
     image_updated = False
     filepath = None
@@ -118,7 +195,6 @@ def dashboard_update_profile(profile_id):
             filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
 
-            # Ensure file is fully flushed to disk before notifying clients
             with open(filepath, "rb") as f:
                 f.flush()
                 os.fsync(f.fileno())
@@ -129,6 +205,7 @@ def dashboard_update_profile(profile_id):
     db.session.commit()
 
     socketio.emit("username_updated", {"profile_id": profile_id, "name": profile.name})
+    socketio.emit("admin_updated", {"profile_id": profile_id, "admin": profile.is_admin})
     if image_updated:
         socketio.emit("profile_image_updated", {"profile_id": profile_id, "image_url": filepath})
 
@@ -150,7 +227,6 @@ def delete_profile(profile_id):
     return jsonify({"message": f"Profile {profile_id} deleted"}), 200
 
 @profile_bp.route("/check_username/<string:username>", methods=["GET"])
-#@jwt_required()
 def check_username(username):
     existing = Profile.query.filter_by(name=username).first()
     return jsonify({"available": existing is None})
@@ -173,6 +249,7 @@ def update_username(profile_id):
     return jsonify(profile.to_dict()), 200
 
 @profile_bp.route("/check_email/<string:email>", methods=["GET"])
+@app_token_required
 def check_email(email):
     existing = Profile.query.filter_by(email=email).first()
     if existing:
@@ -196,7 +273,6 @@ def upload_profile_image(profile_id):
     filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    # Ensure file is fully flushed to disk before notifying clients
     with open(filepath, "rb") as f:
         f.flush()
         os.fsync(f.fileno())
@@ -211,6 +287,7 @@ def serve_image(filename):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
 
 @profile_bp.route("/logout/<int:profile_id>", methods=["POST"])
+@jwt_required()
 def logout(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -220,19 +297,18 @@ def logout(profile_id):
     device_token = data.get("device_token")
 
     if device_token:
-        # Remove only this device's token
         UserDeviceToken.query.filter_by(
             user_id=profile_id,
             device_token=device_token
         ).delete()
     else:
-        # Remove all tokens for this user (full logout)
         UserDeviceToken.query.filter_by(user_id=profile_id).delete()
 
     db.session.commit()
     return jsonify({"success": True}), 200
 
 @profile_bp.route("/register_device/<int:profile_id>", methods=["POST"])
+@jwt_required()
 def register_device(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -243,7 +319,6 @@ def register_device(profile_id):
     if not device_token:
         return jsonify({"error": "device_token is required"}), 400
 
-    # Insert or ignore if already exists (unique constraint handles duplicates)
     existing = UserDeviceToken.query.filter_by(
         user_id=profile_id,
         device_token=device_token
@@ -274,7 +349,6 @@ def send_notification(profile_id):
         conversation_id=data.get("conversation_id", "default")
     )
     return jsonify({"success": True}), 200
-
 
 
 @profile_bp.route("/elo_history/<int:profile_id>", methods=["GET"])

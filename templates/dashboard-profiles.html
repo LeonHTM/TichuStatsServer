@@ -52,6 +52,19 @@
       <input type="file" id="modalImageInput" accept="image/*" style="display:none" onchange="previewImage(event)" />
     </div>
 
+    <div class="modal-field" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between;">
+      <label style="margin-bottom:0;">Admin</label>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="toggle-label-text" id="adminToggleLabel">No</span>
+        <div class="toggle-wrap" onclick="toggleAdmin()">
+          <input type="checkbox" id="modalIsAdmin" style="display:none" />
+          <div class="toggle-track" id="toggleTrack">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-field">
       <label>Name</label>
       <input type="text" id="modalName" placeholder="Name" />
@@ -60,6 +73,8 @@
       <label>Email</label>
       <input type="email" id="modalEmail" placeholder="Email" />
     </div>
+
+    
 
     <div class="modal-error" id="modalError"></div>
     <div class="modal-actions">
@@ -80,7 +95,7 @@
         </svg>
       </button>
     </div>
-    <p style="margin: 0 0 8px; color: var(--text-secondary, #7a7a7a); font-size: 14px;">
+    <p style="margin: 0 0 8px; color: var(--ink-muted); font-size: 14px;">
       Are you sure you want to delete <strong id="deleteProfileName"></strong>? This cannot be undone.
     </p>
     <div class="modal-error" id="deleteError"></div>
@@ -93,7 +108,7 @@
   <main>
     <h1 class="page-title">Profiles</h1>
     <p class="page-subtitle">
-      {{ profiles|length }} player{{ 's' if profiles|length != 1 else '' }} registered
+      {{ profiles|length - 4 }} player{{ 's' if profiles|length != 1 else '' }} registered
     </p>
 
     <div class="toolbar">
@@ -125,32 +140,41 @@
              data-email="{{ profile.email or '' }}"
              data-elo="{{ profile.elo or 0 }}"
              data-date="{{ profile.created_at.isoformat() if profile.created_at else '' }}"
+             data-is-admin="{{ 'true' if profile.is_admin else 'false' }}"
              data-image="{{ profile.profile_image_url.split('/')|last if profile.profile_image_url else '' }}">
 
           <div class="card-header" onclick="toggleCard(`card-{{ profile.id }}`)">
 
-              <button class="card-edit-btn" onclick="openModal(event, '{{ profile.id }}')">Edit</button>
+            <button class="card-edit-btn" onclick="openModal(event, '{{ profile.id }}')">Edit</button>
 
-              {% if profile.profile_image_url %}
-                {% set filename = profile.profile_image_url.split('/')|last %}
-                <img class="avatar" src="/uploads/profile_images/{{ filename }}" />
-              {% else %}
-                <div class="avatar-placeholder">
-                  {{ profile.name[0].upper() if profile.name else '?' }}
-                </div>
-              {% endif %}
+          
 
-              <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
-              <div class="profile-email">{{ profile.email }} · ID {{ profile.id }}</div>
-              <div class="profile-elo">{{ profile.elo }} ELO</div>
-
-              <div class="expand-btn">
-                Show stats
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+            {% if profile.profile_image_url %}
+              {% set filename = profile.profile_image_url.split('/')|last %}
+              <img class="avatar" src="/uploads/profile_images/{{ filename }}" />
+            {% else %}
+              <div class="avatar-placeholder">
+                {{ profile.name[0].upper() if profile.name else '?' }}
               </div>
+            {% endif %}
+
+            <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
+            <div class="profile-email">
+              {{ profile.email }} · ID {{ profile.id }}
+              {% if profile.is_admin %}
+                · <span class="admin-inline">Admin</span>
+              {% endif %}
+            </div>
+            <div class="profile-elo">{{ profile.elo }} ELO</div>
+
+            <div class="expand-btn">
+              Show stats
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 4l4 4 4-4" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
           </div>
+
           <div class="card-body">
             {% set s = profile.all_time_stats %}
             <div class="section-label">Performance</div>
@@ -182,7 +206,7 @@
               {% if profile.created_at %}Joined {{ profile.created_at.strftime('%d %b %Y') }}{% endif %}
             </div>
           </div>
-          
+
         </div>
         {% endfor %}
       {% else %}
@@ -203,6 +227,15 @@
     let newImageFile = null;
     let deleteProfileId = null;
 
+    function toggleAdmin() {
+      const checkbox = document.getElementById('modalIsAdmin');
+      const track = document.getElementById('toggleTrack');
+      const label = document.getElementById('adminToggleLabel');
+      checkbox.checked = !checkbox.checked;
+      track.classList.toggle('on', checkbox.checked);
+      label.textContent = checkbox.checked ? 'Yes' : 'No';
+    }
+
     function openModal(event, profileId) {
       event.stopPropagation();
       currentProfileId = profileId;
@@ -212,18 +245,23 @@
       const name = card.dataset.name;
       const email = card.dataset.email;
       const image = card.dataset.image;
+      const isAdmin = card.dataset.isAdmin === 'true';
 
       document.getElementById('modalName').value = name;
       document.getElementById('modalEmail').value = email;
       document.getElementById('modalError').textContent = '';
       document.getElementById('modalImageInput').value = '';
-
-      // ← this is the fix: store name on the delete button
       document.getElementById('modalDeleteBtn').dataset.name = name;
+
+      const checkbox = document.getElementById('modalIsAdmin');
+      const track = document.getElementById('toggleTrack');
+      const label = document.getElementById('adminToggleLabel');
+      checkbox.checked = isAdmin;
+      track.classList.toggle('on', isAdmin);
+      label.textContent = isAdmin ? 'Yes' : 'No';
 
       const preview = document.getElementById('modalAvatarPreview');
       const placeholder = document.getElementById('modalAvatarPlaceholder');
-
       if (image) {
         preview.src = `/uploads/profile_images/${image}`;
         preview.style.display = 'block';
@@ -273,10 +311,7 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch(`/delete_profile/${deleteProfileId}`, {
-          method: 'DELETE'
-        });
-
+        const res = await fetch(`/delete_profile/${deleteProfileId}`, { method: 'DELETE' });
         if (res.ok) {
           closeDeleteModal();
           location.reload();
@@ -316,6 +351,7 @@
       const formData = new FormData();
       formData.append('name', document.getElementById('modalName').value);
       formData.append('email', document.getElementById('modalEmail').value);
+      formData.append('is_admin', document.getElementById('modalIsAdmin').checked ? 'true' : 'false');
       if (newImageFile) formData.append('image', newImageFile);
 
       try {
@@ -323,7 +359,6 @@
           method: 'POST',
           body: formData
         });
-
         if (res.ok) {
           closeModal();
           location.reload();

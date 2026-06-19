@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session, redirect, render_templat
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from logic.profileLogic import Profile
 from functools import wraps
+from config import APP_SECRET_TOKEN
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -19,6 +20,17 @@ def login():
 
     token = create_access_token(identity=str(profile.id))
     return jsonify({"token": token, "id": profile.id}), 200
+
+def app_token_required(f):
+    """Decorator for endpoints that should only be called by the app (no user token yet)."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer ") or auth_header[7:] != APP_SECRET_TOKEN:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 
 def jwt_or_session_required(fn):

@@ -18,6 +18,8 @@ class Profile(db.Model):
 
     elo = db.Column(db.Float, default=1000.0)
 
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+
     device_tokens = db.relationship("UserDeviceToken", back_populates="profile", cascade="all, delete-orphan")
     stats = db.relationship("ProfileStats", back_populates="profile", cascade="all, delete-orphan")
 
@@ -30,6 +32,7 @@ class Profile(db.Model):
             "profile_image_url": self.profile_image_url,
             "date_added": self.date_added.isoformat() if self.date_added else None,
             "elo": self.elo,
+            "is_admin": self.is_admin,
         }
 
     def to_dictM(self):
@@ -40,6 +43,7 @@ class Profile(db.Model):
             "profile_image_url": self.profile_image_url,
             "date_added": self.date_added.isoformat() if self.date_added else None,
             "elo": self.elo,
+            "is_admin": self.is_admin,
         }
 
     def to_dict_simple(self):
@@ -48,6 +52,7 @@ class Profile(db.Model):
             "name": self.name,
             "profile_image_url": self.profile_image_url,
             "elo": self.elo,
+            "is_admin": self.is_admin,
         }
 
     def to_dict_stats(self, timeframe="all_time"):
@@ -56,10 +61,34 @@ class Profile(db.Model):
             "id": self.id,
             "name": self.name,
             "elo": self.elo,
+            "is_admin": self.is_admin,
         }
         if stats:
             base.update(stats.to_dict())
         return base
+
+class ProfileSettings(db.Model):
+    __tablename__ = "profile_settings"
+
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, unique=True)
+    default_target = db.Column(db.Integer, nullable=False, default=1000)
+    show_pingu     = db.Column(db.Boolean, nullable=False, default=True)
+    drag_mode      = db.Column(db.Boolean, nullable=False, default=False)
+    show_all_players = db.Column(db.Boolean, nullable=False, default=False)
+
+    def to_dict(self):
+        return {
+            "user_id":        self.user_id,
+            "default_target": self.default_target,
+            "show_pingu":     self.show_pingu,
+            "drag_mode":      self.drag_mode,
+            "show_all_players": self.show_all_players
+        }
+
+
+
+
 
 
 class ProfileStats(db.Model):
@@ -358,4 +387,4 @@ def calculateStats(user_id, timeframe="all_time"):
 
     db.session.commit()
     elapsed = time.time() - start
-    print(f"calculateStats({user_id}, {timeframe}) took {elapsed:.3f}s | Winner: {winner_percentage} | Master: {tichu_master} | Visionary: {visionary} | Addict: {addict}")
+    #print(f"calculateStats({user_id}, {timeframe}) took {elapsed:.3f}s | Winner: {winner_percentage} | Master: {tichu_master} | Visionary: {visionary} | Addict: {addict}")
