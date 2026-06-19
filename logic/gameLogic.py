@@ -177,6 +177,55 @@ def finish_game(game_id):
 
     calculate_elo(game_id, game.winner)
 
+# gameLogic.py — fix GUEST_IDS → ids
+def handle_user_deleted(profile_id):
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return None, 404
+
+    ids = [-1, -2, -3, -4]
+
+    active_games = Game.query.filter(
+        Game.winner == None,
+        db.or_(
+            Game.team1_player1_id == profile_id,
+            Game.team1_player2_id == profile_id,
+            Game.team2_player1_id == profile_id,
+            Game.team2_player2_id == profile_id,
+        )
+    ).all()
+
+    for game in active_games:
+        existing_guests_in_game = set()
+        for slot in [game.team1_player1_id, game.team1_player2_id,
+                     game.team2_player1_id, game.team2_player2_id]:
+            if slot is not None and slot in ids:  # ✅ fixed
+                existing_guests_in_game.add(slot)
+
+        replacement_id = None
+        for guest_id in ids:
+            if guest_id not in existing_guests_in_game:
+                replacement_id = guest_id
+                break
+
+        if replacement_id is None:
+            return {"error": f"Cannot delete profile: active game {game.id} has no available guest slot."}, 409
+
+        if game.team1_player1_id == profile_id:
+            game.team1_player1_id = replacement_id
+        elif game.team1_player2_id == profile_id:
+            game.team1_player2_id = replacement_id
+        elif game.team2_player1_id == profile_id:
+            game.team2_player1_id = replacement_id
+        elif game.team2_player2_id == profile_id:
+            game.team2_player2_id = replacement_id
+
+        print(f"delete_profile: replaced profile {profile_id} with guest {replacement_id} in game {game.id}")
+        socketio.emit("game_updated", game.to_dict())
+
+    db.session.commit()
+    return None, 200 
+        
 
 def calculate_elo(game_id, winner):
     winner1 = 0

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
 import os
 from routes.auth_routes import jwt_or_session_required, app_token_required
-from logic.gameLogic import EloHistory
+from logic.gameLogic import EloHistory, handle_user_deleted
 
 
 profile_bp = Blueprint("profile", __name__)
@@ -214,6 +214,10 @@ def dashboard_update_profile(profile_id):
 @profile_bp.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
 @jwt_or_session_required
 def delete_profile(profile_id):
+    error, status = handle_user_deleted(profile_id)
+    if status != 200:
+        return jsonify(error), status
+
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
