@@ -1,7 +1,7 @@
 import jwt
 import time
 import httpx
-from logic.profileLogic import UserDeviceToken
+from logic.profileLogic import UserDeviceToken, FriendRequest
 from config import (
     APNS_TEAM_ID,
     APNS_KEY,
@@ -26,12 +26,17 @@ def get_apns_token():
     )
 
 
+def get_pending_request_count(profile_id: int) -> int:
+    return FriendRequest.query.filter_by(receiver_id=profile_id, status="pending").count()
+
+
 def send_push_notification(
     device_token: str,
     title: str,
     body: str,
     sender_name: str,
     sender_id: str,
+    receiver_id: str,
     conversation_id: str,
     image_url: str = None,
     data: dict = {}
@@ -44,8 +49,10 @@ def send_push_notification(
         "apns-topic": APNS_BUNDLE_ID,
         "apns-push-type": "alert",
         "apns-priority": "10",
-        "apns-collapse-id": f"friend-request-{sender_id}",  # ← collapses duplicate notifications
+        "apns-collapse-id": f"friend-request-{sender_id}",
     }
+
+    badge_count = get_pending_request_count(int(receiver_id))
 
     payload = {
         "aps": {
@@ -54,14 +61,14 @@ def send_push_notification(
                 "body": body
             },
             "sound": "default",
-            "badge": 1,
+            "badge": badge_count,
             "mutable-content": 1,
             "category": "com.apple.developer.usernotifications.communication"
         },
         "sender_name": sender_name,
         "sender_id": sender_id,
         "conversation_id": conversation_id,
-        "notification_id": f"friend-request-{sender_id}",  # ← so iOS side knows what to remove
+        "notification_id": f"friend-request-{sender_id}",
 
         **data
     }
@@ -74,7 +81,57 @@ def send_push_notification(
         print(f"APNs status: {response.status_code}")
         print(f"APNs response: {response.text}")
         return response.status_code == 200
-    
+
+
+def send_accepted_notification(
+    device_token: str,
+    title: str,
+    body: str,
+    sender_name: str,
+    sender_id: str,
+    receiver_id: str,
+    conversation_id: str,
+    image_url: str = None,
+):
+    token = get_apns_token()
+    url = f"https://{APNS_HOST}/3/device/{device_token}"
+
+    headers = {
+        "authorization": f"bearer {token}",
+        "apns-topic": APNS_BUNDLE_ID,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "apns-collapse-id": f"friend-request-accepted-{receiver_id}",
+    }
+
+    badge_count = get_pending_request_count(int(sender_id))
+
+    payload = {
+        "aps": {
+            "alert": {
+                "title": title,
+                "body": body
+            },
+            "sound": "default",
+            "badge": badge_count,
+            "mutable-content": 1,
+            "category": "com.apple.developer.usernotifications.communication"
+        },
+        "sender_name": sender_name,
+        "sender_id": sender_id,
+        "conversation_id": conversation_id,
+        "notification_id": f"friend-request-accepted-{receiver_id}",
+    }
+
+    if image_url:
+        payload["image_url"] = image_url
+
+    with httpx.Client(http2=True) as client:
+        response = client.post(url, json=payload, headers=headers)
+        print(f"APNs status: {response.status_code}")
+        print(f"APNs response: {response.text}")
+        return response.status_code == 200
+
 
 def send_push_notifications_to_user(
     device_tokens: list[str],
@@ -82,29 +139,49 @@ def send_push_notifications_to_user(
     body: str,
     sender_name: str,
     sender_id: str,
+    receiver_id: str,
     conversation_id: str,
     image_url: str = None,
-    data: dict = {}):
-            results = []
-            for token in device_tokens:
-                result = send_push_notification(
-                    device_token=token,
-                    title=title,
-                    body=body,
-                    sender_name=sender_name,
-                    sender_id=sender_id,
-                    conversation_id=conversation_id,
-                    image_url=image_url,
-                    data=data
-                )
-                results.append(result)
-            return all(results)
-    
+    data: dict = {}
+):
+    results = []
+    for token in device_tokens:
+        result = send_push_notification(
+            device_token=token,
+            title=title,
+            body=body,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            receiver_id=receiver_id,
+            conversation_id=conversation_id,
+            image_url=image_url,
+            data=data
+        )
+        results.append(result)
+    return all(results)
+
+
+def notify_accepted(profile_id: int, title: str, body: str, sender_name: str,
+                    sender_id: str, conversation_id: str, image_url: str = None):
+    tokens = get_device_tokens(profile_id)
+    for token in tokens:
+        send_accepted_notification(
+            device_token=token,
+            title=title,
+            body=body,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            receiver_id=str(profile_id),
+            conversation_id=conversation_id,
+            image_url=image_url
+        )
+
 
 # Helper to get all tokens for a user
 def get_device_tokens(profile_id: int) -> list[str]:
     tokens = UserDeviceToken.query.filter_by(user_id=profile_id).all()
     return [t.device_token for t in tokens]
+
 
 # Helper to notify a user on all devices
 def notify_user(profile_id: int, title: str, body: str, sender_name: str,
@@ -117,6 +194,7 @@ def notify_user(profile_id: int, title: str, body: str, sender_name: str,
             body=body,
             sender_name=sender_name,
             sender_id=sender_id,
+            receiver_id=str(profile_id),
             conversation_id=conversation_id,
             image_url=image_url
         )

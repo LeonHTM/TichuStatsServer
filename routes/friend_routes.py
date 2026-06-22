@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile, ProfileFriend, FriendRequest
-from logic.notificationLogic import notify_user
+from logic.notificationLogic import notify_user, notify_accepted
 from config import BASE_URL
 
 friend_bp = Blueprint("friend", __name__)
@@ -48,7 +48,7 @@ def add_friend(profile_id, friend_id):
 
     conversation_id = f"friends-{min(profile_id, friend_id)}-{max(profile_id, friend_id)}"
     image_url = f"{BASE_URL}/{profile.profile_image_url}" if profile.profile_image_url else None
-    notify_user(
+    notify_accepted(
         profile_id=friend_id,
         title="Friend Request Accepted",
         body=f"You and {profile.name} are now friends",
@@ -105,7 +105,7 @@ def send_friend_request(sender_id, receiver_id):
             socketio.emit("remove_friend_request_notification", {"user_id": sender_id, "sender_id": receiver_id})
 
             image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
-            notify_user(
+            notify_accepted(
                 profile_id=receiver_id,
                 title="Friend Request Accepted",
                 body=f"You and {sender.name} are now friends",
@@ -172,7 +172,7 @@ def respond_to_request(receiver_id, sender_id):
     if action == "accepted" and sender:
         conversation_id = f"friends-{min(sender_id, receiver_id)}-{max(sender_id, receiver_id)}"
         image_url = f"{BASE_URL}/{receiver.profile_image_url}" if receiver and receiver.profile_image_url else None
-        notify_user(
+        notify_accepted(
             profile_id=sender_id,
             title="Friend Request Accepted",
             body=f"{receiver.name} accepted your friend request",
