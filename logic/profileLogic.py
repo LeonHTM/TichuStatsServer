@@ -76,16 +76,19 @@ class ProfileSettings(db.Model):
     show_pingu     = db.Column(db.Boolean, nullable=False, default=True)
     drag_mode      = db.Column(db.Boolean, nullable=False, default=False)
     show_all_players = db.Column(db.Boolean, nullable=False, default=False)
+    sort_by_profile = db.Column("sortByProfile", db.Integer, nullable=False, default=0)
+    sort_by_stats   = db.Column("sortByStats", db.Integer, nullable=False, default=2)
 
     def to_dict(self):
         return {
-            "user_id":        self.user_id,
-            "default_target": self.default_target,
-            "show_pingu":     self.show_pingu,
-            "drag_mode":      self.drag_mode,
-            "show_all_players": self.show_all_players
+            "user_id":          self.user_id,
+            "default_target":   self.default_target,
+            "show_pingu":       self.show_pingu,
+            "drag_mode":        self.drag_mode,
+            "show_all_players": self.show_all_players,
+            "sort_by_profiles": self.sort_by_profile,
+            "sort_by_stats":    self.sort_by_stats,
         }
-
 
 
 

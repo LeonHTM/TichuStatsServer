@@ -14,7 +14,6 @@
 <nav>
   <a href="/dashboard/games" class="nav-title">Tichu Dashboard</a>
   <a href="/dashboard/profiles" class="nav-link {% if request.path == '/dashboard/profiles' %}active{% endif %}">Profiles</a>
-  <a href="/dashboard/rounds"   class="nav-link {% if request.path == '/dashboard/rounds'   %}active{% endif %}">Rounds</a>
   <a href="/dashboard/games"    class="nav-link {% if request.path == '/dashboard/games'    %}active{% endif %}">Games</a>
   <div class="nav-profile-wrap">
     <button class="nav-profile-btn" onclick="toggleProfilePopup(event)" aria-label="Account">
@@ -39,7 +38,7 @@
     {{ games|length }} game{{ 's' if games|length != 1 else '' }} played
   </p>
 
-  <!-- TOOLBAR — reuses .toolbar, .sort-bar, .sort-btn, .search-wrapper from styles.css -->
+  <!-- TOOLBAR -->
   <div class="toolbar">
     <div class="sort-bar">
       <button class="sort-btn active" onclick="sortTable('date','desc',this)">Newest</button>
@@ -52,11 +51,11 @@
       <svg class="search-icon" viewBox="0 0 19.4434 19.2676" xmlns="http://www.w3.org/2000/svg">
         <path d="M0 7.79297C0 12.0898 3.49609 15.5859 7.79297 15.5859C9.49219 15.5859 11.0449 15.0391 12.3242 14.1211L17.1289 18.9355C17.3535 19.1602 17.6465 19.2676 17.959 19.2676C18.623 19.2676 19.082 18.7695 19.082 18.1152C19.082 17.8027 18.9648 17.5195 18.7598 17.3145L13.9844 12.5098C14.9902 11.2012 15.5859 9.57031 15.5859 7.79297C15.5859 3.49609 12.0898 0 7.79297 0C3.49609 0 0 3.49609 0 7.79297ZM1.66992 7.79297C1.66992 4.41406 4.41406 1.66992 7.79297 1.66992C11.1719 1.66992 13.916 4.41406 13.916 7.79297C13.916 11.1719 11.1719 13.916 7.79297 13.916C4.41406 13.916 1.66992 11.1719 1.66992 7.79297Z" fill="currentColor"/>
       </svg>
-      <input type="text" id="gameSearch" placeholder="Search games…" oninput="filterTable()" />
+      <input type="text" id="gameSearch" placeholder="Search Games" oninput="filterTable()" />
     </div>
   </div>
 
-  <!-- TABLE — reuses .table-wrap, .admin-table, .badge from styles.css -->
+  <!-- TABLE -->
   <div class="table-wrap">
     <table class="admin-table" id="gamesTable">
       <thead>
@@ -77,6 +76,7 @@
 
       {% for g in games %}
       {% set status = 'finished' if g.winner else 'ongoing' %}
+      {% set win_rounds = g.rounds | selectattr('win_round') | list %}
 
       <!-- MAIN ROW -->
       <tr class="game-row"
@@ -133,7 +133,7 @@
         </td>
 
         <td class="td-target">{{ g.target }}</td>
-        
+
         <td>
           <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
             Delete
@@ -175,97 +175,180 @@
               </div>
             </div>
 
-            <!-- Team headers -->
-            <div class="teams-header">
-              <div class="team-col">
-                <span class="team-label {% if g.winner == 1 %}team-label-win{% endif %}">
-                  Team 1{% if g.winner == 1 %} 🏆{% endif %}
-                </span>
-                <span class="team-names">{{ g.team1_p1 }} &amp; {{ g.team1_p2 }}</span>
-              </div>
-              <div class="team-col">
-                <span class="team-label {% if g.winner == 2 %}team-label-win{% endif %}">
-                  Team 2{% if g.winner == 2 %} 🏆{% endif %}
-                </span>
-                <span class="team-names">{{ g.team2_p1 }} &amp; {{ g.team2_p2 }}</span>
-              </div>
-            </div>
-
-            <!-- Rounds table -->
+            <!-- Rounds accordion -->
             {% if g.rounds %}
-            <div class="rounds-wrap">
-              <table class="rounds-table">
-                <thead>
-                  <tr>
-                    <th>Rnd</th>
-                    <th>T1 Cards</th>
-                    <th>T1 Tichu</th>
-                    <th>T1 Total</th>
-                    <th>T2 Cards</th>
-                    <th>T2 Tichu</th>
-                    <th>T2 Total</th>
-                    <th>T1 Running</th>
-                    <th>T2 Running</th>
-                    <th>Specials</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% set ns = namespace(running1=0, running2=0) %}
-                  {% for r in g.rounds %}
-                  {% set ns.running1 = ns.running1 + r.round_pts1 + r.tichu1 %}
-                  {% set ns.running2 = ns.running2 + r.round_pts2 + r.tichu2 %}
-                  <tr class="round-row {% if r.win_round %}round-final{% endif %}">
+            <div class="rounds-list">
+              {% set ns = namespace(running1=0, running2=0) %}
+              {% for r in g.rounds %}
+              {% set ns.running1 = ns.running1 + r.round_pts1 + r.tichu1 %}
+              {% set ns.running2 = ns.running2 + r.round_pts2 + r.tichu2 %}
+              {% set is_win_round = r.win_round %}
+              {% set is_locked = not is_win_round %}
+              {% set card_id = 'round-' ~ g.id ~ '-' ~ r.order %}
 
-                    <td class="rnd-num">{{ r.order }}</td>
+              <!-- Finisher IDs: safe .get() lookup, works whether or not the backend
+                   sends these fields yet. Missing → None → no place/win-loss data. -->
+              {% set fid = r.get('first_profile_id') %}
+              {% set sid = r.get('second_profile_id') %}
+              {% set tid = r.get('third_profile_id') %}
+              {% set qid = r.get('fourth_profile_id') %}
+              {% set has_place_data = fid is not none or sid is not none or tid is not none or qid is not none %}
 
-                    <td class="rnd-pts">{{ r.round_pts1 }}</td>
-                    <td class="rnd-tichu {% if r.tichu1 > 0 %}tichu-pos{% elif r.tichu1 < 0 %}tichu-neg{% endif %}">
-                      {% if r.tichu1 != 0 %}{{ '+' if r.tichu1 > 0 }}{{ r.tichu1 }}{% else %}—{% endif %}
-                    </td>
-                    <td class="rnd-total">{{ r.round_pts1 + r.tichu1 }}</td>
+              {% set tichu_ids     = r.tichu     or [] %}
+              {% set big_tichu_ids = r.big_tichu or [] %}
+              {% set pingu_ids     = r.pingu     or [] %}
 
-                    <td class="rnd-pts">{{ r.round_pts2 }}</td>
-                    <td class="rnd-tichu {% if r.tichu2 > 0 %}tichu-pos{% elif r.tichu2 < 0 %}tichu-neg{% endif %}">
-                      {% if r.tichu2 != 0 %}{{ '+' if r.tichu2 > 0 }}{{ r.tichu2 }}{% else %}—{% endif %}
-                    </td>
-                    <td class="rnd-total">{{ r.round_pts2 + r.tichu2 }}</td>
+              <!-- Build both teams' player rows once, shared logic for team1/team2. -->
+              {% set all_teams_players = [] %}
+              {% for p1_id, p1_name, p2_id, p2_name in [
+                   (g.team1_p1_id, g.team1_p1, g.team1_p2_id, g.team1_p2),
+                   (g.team2_p1_id, g.team2_p1, g.team2_p2_id, g.team2_p2)
+                 ] %}
+                {% set players = [] %}
+                {% for pid, pname in [(p1_id, p1_name), (p2_id, p2_name)] %}
 
-                    <td class="rnd-running {% if ns.running1 > ns.running2 %}running-lead{% endif %}">
-                      {{ ns.running1 }}
-                    </td>
-                    <td class="rnd-running {% if ns.running2 > ns.running1 %}running-lead{% endif %}">
-                      {{ ns.running2 }}
-                    </td>
+                  {% set place = 0 %}
+                  {% if has_place_data and pid is not none %}
+                    {% if pid == fid %}{% set place = 1 %}
+                    {% elif pid == sid %}{% set place = 2 %}
+                    {% elif pid == tid %}{% set place = 3 %}
+                    {% elif pid == qid %}{% set place = 4 %}
+                    {% endif %}
+                  {% endif %}
 
-                    <td class="rnd-specials">
-                      {% set specials = [] %}
-                      {% if r.double1 %}{% set _ = specials.append('Double T1') %}{% endif %}
-                      {% if r.double2 %}{% set _ = specials.append('Double T2') %}{% endif %}
-                      {% for pid in r.tichu     %}{% set _ = specials.append('Tichu')     %}{% endfor %}
-                      {% for pid in r.big_tichu %}{% set _ = specials.append('Big Tichu') %}{% endfor %}
-                      {% for pid in r.pingu     %}{% set _ = specials.append('Pingu')     %}{% endfor %}
-                      {% set total_bombs = r.bombs1 + r.bombs2 + r.bombs3 + r.bombs4 %}
-                      {% if total_bombs > 0 %}{% set _ = specials.append('💣 ×' ~ total_bombs) %}{% endif %}
-                      {% if specials %}
-                        {% for s in specials %}<span class="special-tag">{{ s }}</span>{% endfor %}
-                      {% else %}
-                        <span class="no-specials">—</span>
-                      {% endif %}
-                    </td>
+                  {% set announced = pid is not none and (pid in tichu_ids or pid in big_tichu_ids or pid in pingu_ids) %}
+                  {# Success/fail can only be shown once finisher data exists; otherwise badge is neutral. #}
+                  {% set knows_outcome = has_place_data and place > 0 %}
 
-                  </tr>
-                  {% endfor %}
-                </tbody>
-                <tfoot>
-                  <tr class="rounds-total-row">
-                    <td colspan="3" class="total-label">Final</td>
-                    <td class="total-val {% if g.winner == 1 %}total-win{% endif %}">{{ g.points1 }}</td>
-                    <td colspan="2" class="total-label"></td>
-                    <td class="total-val {% if g.winner == 2 %}total-win{% endif %}">{{ g.points2 }}</td>
-                    <td colspan="3"></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  {% set _ = players.append({
+                    'pname': pname,
+                    'place': place,
+                    'sort_key': place if place > 0 else 99,
+                    'is_first': (place == 1),
+                    'knows_outcome': knows_outcome,
+                    'bomb': {1: r.bombs1, 2: r.bombs2, 3: r.bombs3, 4: r.bombs4}.get(place, 0),
+                    'tichu': pid is not none and pid in tichu_ids,
+                    'big_tichu': pid is not none and pid in big_tichu_ids,
+                    'pingu': pid is not none and pid in pingu_ids,
+                  }) %}
+                {% endfor %}
+                {% set _ = all_teams_players.append(players) %}
+              {% endfor %}
+
+              {# Only re-sort by place when we actually have finisher data — otherwise keep fixed p1/p2 order. #}
+              {% set team1_players = (all_teams_players[0] | sort(attribute='sort_key')) if has_place_data else all_teams_players[0] %}
+              {% set team2_players = (all_teams_players[1] | sort(attribute='sort_key')) if has_place_data else all_teams_players[1] %}
+
+              <div class="round-card {% if is_locked %}round-locked{% endif %}" id="{{ card_id }}">
+                <div class="round-header" onclick="{% if not is_locked %}toggleRound('{{ card_id }}', event){% else %}event.stopPropagation(){% endif %}">
+
+                  <!-- LEFT: Team 1 side (indicators + delta/cum) -->
+                  <div class="round-side">
+                    <div class="round-indicators team1">
+                      {% for p in team1_players %}
+                        {% if p.tichu or p.big_tichu or p.pingu %}
+                          <span class="indicator-letter {% if p.knows_outcome %}{{ 'indicator-win' if p.is_first else 'indicator-loss' }}{% else %}indicator-neutral{% endif %}">
+                            {{ 'T' if p.big_tichu else ('P' if p.pingu else 't') }}
+                          </span>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="round-delta-block {% if r.double1 %}round-double-win{% endif %}">
+                      <span class="round-delta">{{ '+' if (r.round_pts1 + r.tichu1) >= 0 }}{{ r.round_pts1 + r.tichu1 }}</span>
+                      <span class="round-divider"></span>
+                      <span class="round-cum">{{ ns.running1 }}</span>
+                    </div>
+                  </div>
+
+                  <!-- CENTER: title + chevron -->
+                  <span class="round-title">
+                    Round {{ r.order }}
+                    <span class="round-chevron">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  </span>
+
+                  <!-- RIGHT: Team 2 side (delta/cum + indicators) -->
+                  <div class="round-side">
+                    <div class="round-delta-block {% if r.double2 %}round-double-win{% endif %}">
+                      <span class="round-delta">{{ '+' if (r.round_pts2 + r.tichu2) >= 0 }}{{ r.round_pts2 + r.tichu2 }}</span>
+                      <span class="round-divider"></span>
+                      <span class="round-cum">{{ ns.running2 }}</span>
+                    </div>
+                    <div class="round-indicators team2">
+                      {% for p in team2_players %}
+                        {% if p.tichu or p.big_tichu or p.pingu %}
+                          <span class="indicator-letter {% if p.knows_outcome %}{{ 'indicator-win' if p.is_first else 'indicator-loss' }}{% else %}indicator-neutral{% endif %}">
+                            {{ 'T' if p.big_tichu else ('P' if p.pingu else 't') }}
+                          </span>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                  </div>
+
+                </div>
+
+                <div class="round-body">
+
+                  <!-- Team 1 block -->
+                  <div class="round-team-block">
+                    <div class="round-team-label">Team 1</div>
+                    {% for p in team1_players %}
+                      <div class="round-player-row">
+                        <span class="round-player-place {% if r.double1 %}place-double-win{% endif %}">
+                          {{ p.place if p.place > 0 else '–' }}{{ '.' if p.place > 0 }}
+                        </span>
+                        <span class="round-player-name">{{ p.pname }}</span>
+                        {% if p.tichu or p.big_tichu or p.pingu %}
+                          <span class="round-player-badge {% if p.knows_outcome %}{{ 'badge-win' if p.is_first else 'badge-loss' }}{% else %}badge-neutral{% endif %}">
+                            {% if p.knows_outcome %}
+                              <span class="round-player-badge-icon">{{ '✓' if p.is_first else '✗' }}</span>
+                            {% endif %}
+                            {{ 'Big Tichu' if p.big_tichu else ('Pingu' if p.pingu else 'Tichu') }}
+                          </span>
+                        {% endif %}
+                        {% if p.bomb > 0 %}
+                          <span class="round-player-bomb">💣 {{ p.bomb }}</span>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  <!-- Team 2 block -->
+                  <div class="round-team-block">
+                    <div class="round-team-label team2-label">Team 2</div>
+                    {% for p in team2_players %}
+                      <div class="round-player-row">
+                        <span class="round-player-place {% if r.double2 %}place-double-win{% endif %}">
+                          {{ p.place if p.place > 0 else '–' }}{{ '.' if p.place > 0 }}
+                        </span>
+                        <span class="round-player-name">{{ p.pname }}</span>
+                        {% if p.tichu or p.big_tichu or p.pingu %}
+                          <span class="round-player-badge {% if p.knows_outcome %}{{ 'badge-win' if p.is_first else 'badge-loss' }}{% else %}badge-neutral{% endif %}">
+                            {% if p.knows_outcome %}
+                              <span class="round-player-badge-icon">{{ '✓' if p.is_first else '✗' }}</span>
+                            {% endif %}
+                            {{ 'Big Tichu' if p.big_tichu else ('Pingu' if p.pingu else 'Tichu') }}
+                          </span>
+                        {% endif %}
+                        {% if p.bomb > 0 %}
+                          <span class="round-player-bomb">💣 {{ p.bomb }}</span>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                </div>
+              </div>
+              {% endfor %}
+
+              {% if g.rounds | length != win_rounds | length %}
+              <div class="rounds-uncounted-note">
+                {{ g.rounds | length - win_rounds | length }} round(s) not counted yet ({{ win_rounds | length }} counted)
+              </div>
+              {% endif %}
             </div>
             {% else %}
               <div class="no-rounds">No rounds recorded yet.</div>
@@ -294,13 +377,12 @@
 <footer>Copyright © 2026 Drakynem. All rights reserved.</footer>
 
 <script>
-  /* ---- Expand / collapse ---- */
+  /* ---- Expand / collapse game row ---- */
   function toggleExpand(id) {
     const row  = document.getElementById(`expand-${id}`);
     const chev = document.getElementById(`chevron-${id}`);
     const isOpen = row.classList.contains('open');
 
-    // close all others first
     document.querySelectorAll('.expand-row.open').forEach(r => r.classList.remove('open'));
     document.querySelectorAll('.expand-chevron.open').forEach(c => c.classList.remove('open'));
     document.querySelectorAll('.game-row.active-row').forEach(r => r.classList.remove('active-row'));
@@ -312,12 +394,25 @@
     }
   }
 
+  /* ---- Expand / collapse a single round card (accordion, one at a time) ---- */
+  function toggleRound(cardId, event) {
+    event.stopPropagation();
+    const card = document.getElementById(cardId);
+    const isOpen = card.classList.contains('expanded');
+
+    const list = card.closest('.rounds-list');
+    list.querySelectorAll('.round-card.expanded').forEach(c => c.classList.remove('expanded'));
+
+    if (!isOpen) {
+      card.classList.add('expanded');
+    }
+  }
+
   /* ---- Sort ---- */
   function sortTable(key, dir, btn) {
     document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    // collapse open rows
     document.querySelectorAll('.expand-row.open').forEach(r => r.classList.remove('open'));
     document.querySelectorAll('.expand-chevron.open').forEach(c => c.classList.remove('open'));
     document.querySelectorAll('.game-row.active-row').forEach(r => r.classList.remove('active-row'));
@@ -450,7 +545,6 @@ async function deleteGame(event, id) {
   document.querySelector(`#expand-${id}`)?.remove();
 }
 </script>
-
 
 </body>
 </html>

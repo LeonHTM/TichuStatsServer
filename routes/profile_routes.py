@@ -60,7 +60,9 @@ def get_profile_settings(profile_id):
             "default_target": 1000,
             "show_pingu": True,
             "drag_mode": False,
-            "show_all_profiles": False
+            "show_all_profiles": False,
+            "sort_by_profiles": 0,
+            "sort_by_stats": 2
         }), 200
     return jsonify(settings.to_dict()), 200
 
@@ -94,8 +96,12 @@ def update_profile_settings(profile_id):
         settings.drag_mode = data["drag_mode"]
     if "show_all_players" in data:
         settings.show_all_players = data["show_all_players"]
+    if "sort_by_profiles" in data:
+        settings.sort_by_profile = data["sort_by_profiles"]
+    if "sort_by_stats" in data:
+        settings.sort_by_stats = data["sort_by_stats"]
 
-    print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}")
+    print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}, sort_by_profile={settings.sort_by_profile}, sort_by_stats={settings.sort_by_stats})")
 
     try:
         db.session.commit()

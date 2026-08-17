@@ -1,4 +1,3 @@
-
 from flask import Flask, request, redirect, session, render_template
 from flask_jwt_extended import create_access_token
 from extensions import db, socketio, jwt
@@ -148,6 +147,10 @@ def create_app():
                 "bombs2":     r.second_bombs,
                 "bombs3":     r.third_bombs,
                 "bombs4":     r.fourth_bombs,
+                "first_profile_id":  r.first_profile_id,
+                "second_profile_id": r.second_profile_id,
+                "third_profile_id":  r.third_profile_id,
+                "fourth_profile_id": r.fourth_profile_id,
             })
 
         games_data = []

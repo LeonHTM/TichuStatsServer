@@ -14,10 +14,12 @@
   --font-text: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --box-shadow: #f4efd7;
   --shadow-elevated: 0 11px 34px rgba(0, 0, 0, 0.15);
-  --field-background: var(--canvas);
+  --field-background: var(--cansvas);
   --badge-background: #ede7c4;
   --badge-ink: var(--primary);
   --badge-border: #ddcf88;
+  --success: #34c759;
+  --danger: #ff3b30;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1101,7 +1103,7 @@ main {
 }
 
 /* ============================================================
-   GAMES DASHBOARD — expand + rounds
+   GAMES DASHBOARD — expand
    ============================================================ */
 
 .th-expand,
@@ -1197,7 +1199,7 @@ main {
   white-space: nowrap;
 }
 
-/* Detail strip */
+/* Detail strip (top of expanded game) */
 .detail-strip {
   display: flex;
   flex-wrap: wrap;
@@ -1225,181 +1227,6 @@ main {
   font-size: 13px;
   font-weight: 500;
   color: var(--ink);
-}
-
-/* Teams header */
-.teams-header {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.team-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.team-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-muted);
-}
-
-.team-label-win { color: #34c759; }
-
-.team-names {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-/* Rounds table */
-.rounds-wrap {
-  overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid var(--hairline);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.rounds-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  white-space: nowrap;
-  background: var(--canvas);
-}
-
-.rounds-table thead tr {
-  background: var(--canvas-parchment);
-  border-bottom: 1px solid var(--divider);
-}
-
-.rounds-table th {
-  padding: 9px 12px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-muted);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.rounds-table th:first-child {
-  text-align: center;
-  width: 44px;
-}
-
-.round-row {
-  border-bottom: 1px solid var(--divider);
-  transition: background 0.1s;
-}
-
-.round-row:last-child { border-bottom: none; }
-.round-row:hover { background: var(--canvas-parchment); }
-
-.round-row.round-final { background: rgba(52, 199, 89, 0.05); }
-
-.rounds-table td {
-  padding: 9px 12px;
-  color: var(--ink);
-  text-align: center;
-  vertical-align: middle;
-}
-
-.rnd-num {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ink-muted);
-  width: 44px;
-}
-
-.rnd-pts {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.rnd-tichu {
-  font-weight: 600;
-  color: var(--ink-muted);
-}
-
-.tichu-pos { color: #34c759; }
-.tichu-neg { color: #ff3b30; }
-
-.rnd-total {
-  font-weight: 700;
-  color: var(--ink);
-  background: var(--canvas-parchment);
-}
-
-.rnd-running {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.rnd-running.running-lead {
-  color: var(--primary);
-  font-weight: 700;
-}
-
-.rnd-specials {
-  text-align: left;
-  min-width: 120px;
-}
-
-.special-tag {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 980px;
-  font-size: 10px;
-  font-weight: 600;
-  background: var(--badge-background);
-  color: var(--badge-ink);
-  border: 1px solid var(--badge-border);
-  margin: 1px 2px;
-  white-space: nowrap;
-}
-
-.no-specials { color: var(--ink-muted); }
-
-.rounds-total-row {
-  border-top: 1px solid var(--divider);
-  background: var(--canvas-parchment);
-}
-
-.rounds-total-row td { padding: 10px 12px; }
-
-.total-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-muted);
-  text-align: right;
-}
-
-.total-val {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--primary);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.total-val.total-win { color: #34c759; }
-
-.no-rounds {
-  padding: 20px 0 6px;
-  font-size: 13px;
-  color: var(--ink-muted);
-  text-align: center;
 }
 
 .empty-state {
@@ -1430,15 +1257,270 @@ main {
   .admin-table th:nth-child(9) { display: none; }
 }
 
+/* ============================================================
+   ROUNDS — DisclosureGroup-style accordion (mirrors SwiftUI)
+   ============================================================ */
+
+.rounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.round-player-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 980px;
+  border: 1px solid transparent;
+}
+
+.round-player-badge-icon {
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.round-player-badge.badge-win {
+  color: var(--success);
+  background: rgba(52, 199, 89, 0.12);
+  border-color: rgba(52, 199, 89, 0.28);
+}
+
+.round-player-badge.badge-loss {
+  color: var(--danger);
+  background: rgba(255, 59, 48, 0.12);
+  border-color: rgba(255, 59, 48, 0.28);
+}
+.indicator-neutral { color: var(--ink-muted); }
+
+.round-player-badge.badge-neutral {
+  color: var(--ink-muted);
+  background: var(--canvas-parchment);
+  border-color: var(--hairline);
+}
+.round-card {
+  border-radius: 14px;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.round-card.round-locked {
+  opacity: 0.5;
+}
+
+.round-card.round-locked .round-header {
+  cursor: default;
+}
+
+.round-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.round-card.expanded .round-header {
+  justify-content: center;
+}
+
+.round-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.round-card.expanded .round-side {
+  display: none;
+}
+
+.round-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 18px;
+  align-items: flex-start;
+}
+
+.round-indicators.team2 {
+  align-items: flex-end;
+}
+
+.indicator-letter {
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.indicator-win  { color: var(--success); }
+.indicator-loss { color: var(--danger); }
+
+.round-delta-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 50px;
+}
+
+.round-delta {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.round-double-win .round-delta,
+.round-double-win .round-cum {
+  color: var(--success);
+}
+
+.round-divider {
+  width: 36px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.2;
+  margin: 2px 0;
+}
+
+.round-cum {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.round-title {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.224px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.round-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.round-card.expanded .round-chevron {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.round-body {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 16px;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.3s ease;
+  display: flex;
+  gap: 16px;
+}
+
+.round-card.expanded .round-body {
+  max-height: 900px;
+  padding: 0 16px 16px;
+}
+
+.round-team-block {
+  flex: 1;
+  min-width: 0;
+  background: var(--canvas-parchment);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
 
 
 
 
 
+.round-team-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
 
+.round-team-label.team2-label {
+  color: var(--ink);
+}
 
+.round-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+}
 
+.round-player-place {
+  font-weight: 700;
+  width: 18px;
+  flex-shrink: 0;
+  color: var(--ink);
+}
 
+.round-player-place.place-double-win {
+  color: var(--success);
+}
+
+.round-player-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.round-player-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.round-player-badge.badge-win  { color: var(--success); }
+.round-player-badge.badge-loss { color: var(--danger); }
+
+.round-player-bomb {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.rounds-uncounted-note {
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.no-rounds {
+  padding: 20px 0 6px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .round-title { font-size: 14px; }
+  .round-delta-block { width: 44px; }
+}
+
+/* ============================================================
+   MISC / ADMIN
+   ============================================================ */
 
 .btn-danger {
   background: #cc0000;
