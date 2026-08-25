@@ -18,7 +18,6 @@ class Game(db.Model):
     team2_player1_id = db.Column(db.Integer)
     team2_player2_id = db.Column(db.Integer)
 
-    # Custom display names for guest players (negative IDs -1..-4)
     guest2_name = db.Column(db.String(255), nullable=True)
     guest3_name = db.Column(db.String(255), nullable=True)
     guest4_name = db.Column(db.String(255), nullable=True)
