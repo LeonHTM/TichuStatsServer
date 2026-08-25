@@ -1,13 +1,14 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
 from flask_jwt_extended import jwt_required
 from extensions import db, socketio
-from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings
+from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
 import os
 from routes.auth_routes import jwt_or_session_required, app_token_required
 from logic.gameLogic import EloHistory, handle_user_deleted
+from datetime import datetime
 
 
 profile_bp = Blueprint("profile", __name__)
@@ -75,18 +76,18 @@ def update_profile_settings(profile_id):
         return jsonify({"error": "Profile not found"}), 404
 
     data = request.get_json()
-    print(f"update_profile_settings: profile_id={profile_id}, data={data}")
+    #print(f"update_profile_settings: profile_id={profile_id}, data={data}")
 
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
     settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
-    print(f"update_profile_settings: existing settings={settings}")
+    #print(f"update_profile_settings: existing settings={settings}")
 
     if not settings:
         settings = ProfileSettings(user_id=profile_id)
         db.session.add(settings)
-        print("update_profile_settings: created new settings row")
+        #print("update_profile_settings: created new settings row")
 
     if "default_target" in data:
         settings.default_target = data["default_target"]
@@ -101,14 +102,14 @@ def update_profile_settings(profile_id):
     if "sort_by_stats" in data:
         settings.sort_by_stats = data["sort_by_stats"]
 
-    print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}, sort_by_profile={settings.sort_by_profile}, sort_by_stats={settings.sort_by_stats})")
+    #print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}, sort_by_profile={settings.sort_by_profile}, sort_by_stats={settings.sort_by_stats})")
 
     try:
         db.session.commit()
-        print("update_profile_settings: commit successful")
+        #print("update_profile_settings: commit successful")
     except Exception as e:
         db.session.rollback()
-        print(f"update_profile_settings: commit FAILED: {e}")
+        #print(f"update_profile_settings: commit FAILED: {e}")
         return jsonify({"error": str(e)}), 500
 
     return jsonify(settings.to_dict()), 200
@@ -120,13 +121,30 @@ def get_profilesM():
     profiles = Profile.query.all()
     return jsonify([p.to_dictM() for p in profiles])
 
+from datetime import datetime
+
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
 @jwt_or_session_required
 def get_profilesstats(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
+
     timeframe = request.args.get("timeframe", "all_time")
+
+    today = datetime.utcnow().date()
+    existing = ProfileStats.query.filter_by(profile_id=profile_id, timeframe=timeframe).first()
+
+    already_calculated_today = (
+        existing is not None
+        and existing.calculated_at is not None
+        and existing.calculated_at.date() == today
+    )
+
+    if not already_calculated_today:
+        for tf in ("all_time", "year", "month", "week", "day"):
+            calculateStats(profile_id, timeframe=tf)
+
     return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
 

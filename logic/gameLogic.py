@@ -18,6 +18,11 @@ class Game(db.Model):
     team2_player1_id = db.Column(db.Integer)
     team2_player2_id = db.Column(db.Integer)
 
+    # Custom display names for guest players (negative IDs -1..-4)
+    guest2_name = db.Column(db.String(255), nullable=True)
+    guest3_name = db.Column(db.String(255), nullable=True)
+    guest4_name = db.Column(db.String(255), nullable=True)
+
     current_points_team1 = db.Column(db.Integer, default=0)
     current_points_team2 = db.Column(db.Integer, default=0)
 
@@ -62,6 +67,10 @@ class Game(db.Model):
             "team1_player2_id": self.team1_player2_id,
             "team2_player1_id": self.team2_player1_id,
             "team2_player2_id": self.team2_player2_id,
+
+            "guest2_name": self.guest2_name,
+            "guest3_name": self.guest3_name,
+            "guest4_name": self.guest4_name,
 
             "current_points_team1": self.current_points_team1,
             "current_points_team2": self.current_points_team2,
@@ -199,7 +208,7 @@ def handle_user_deleted(profile_id):
         existing_guests_in_game = set()
         for slot in [game.team1_player1_id, game.team1_player2_id,
                      game.team2_player1_id, game.team2_player2_id]:
-            if slot is not None and slot in ids:  # ✅ fixed
+            if slot is not None and slot in ids:  
                 existing_guests_in_game.add(slot)
 
         replacement_id = None

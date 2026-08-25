@@ -23,7 +23,6 @@ def add_game():
         data.get("team2_player2_id"),
     ]
 
-   
     real_ids = [pid for pid in player_ids if pid is not None and pid > 0]
     if real_ids:
         conflict = Game.query.filter(
@@ -45,6 +44,9 @@ def add_game():
         team1_player2_id=data.get("team1_player2_id"),
         team2_player1_id=data.get("team2_player1_id"),
         team2_player2_id=data.get("team2_player2_id"),
+        guest2_name=data.get("guest2_name"),
+        guest3_name=data.get("guest3_name"),
+        guest4_name=data.get("guest4_name"),
     )
 
     db.session.add(game)
@@ -53,7 +55,6 @@ def add_game():
     socketio.emit("game_created", game.to_dict())
 
     return jsonify(game.to_dict()), 201
-
 
 @game_bp.route("/finish_game/<int:game_id>", methods=["POST"])
 @jwt_or_session_required
@@ -96,6 +97,9 @@ def game_edit_player(game_id):
         "team1_player2_id",
         "team2_player1_id",
         "team2_player2_id",
+        "guest2_name",
+        "guest3_name",
+        "guest4_name",
     }
 
     updated_fields = {k: v for k, v in data.items() if k in allowed_fields}

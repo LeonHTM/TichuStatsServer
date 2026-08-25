@@ -1422,16 +1422,13 @@ main {
 .round-body {
   max-height: 0;
   overflow: hidden;
-  padding: 0 16px;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
               padding 0.3s ease;
   display: flex;
-  gap: 16px;
 }
 
 .round-card.expanded .round-body {
   max-height: 900px;
-  padding: 0 16px 16px;
 }
 
 .round-team-block {
