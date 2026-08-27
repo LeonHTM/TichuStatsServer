@@ -82,12 +82,10 @@ def update_profile_settings(profile_id):
         return jsonify({"error": "No data provided"}), 400
 
     settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
-    #print(f"update_profile_settings: existing settings={settings}")
 
     if not settings:
         settings = ProfileSettings(user_id=profile_id)
         db.session.add(settings)
-        #print("update_profile_settings: created new settings row")
 
     if "default_target" in data:
         settings.default_target = data["default_target"]
@@ -101,15 +99,12 @@ def update_profile_settings(profile_id):
         settings.sort_by_profile = data["sort_by_profiles"]
     if "sort_by_stats" in data:
         settings.sort_by_stats = data["sort_by_stats"]
-
-    #print(f"update_profile_settings: saving target={settings.default_target}, show_pingu={settings.show_pingu}, drag_mode={settings.drag_mode}, sort_by_profile={settings.sort_by_profile}, sort_by_stats={settings.sort_by_stats})")
-
+    
     try:
         db.session.commit()
-        #print("update_profile_settings: commit successful")
+        socketio.emit("settings_updated", {"id": profile_id})
     except Exception as e:
         db.session.rollback()
-        #print(f"update_profile_settings: commit FAILED: {e}")
         return jsonify({"error": str(e)}), 500
 
     return jsonify(settings.to_dict()), 200
