@@ -365,11 +365,13 @@ def send_notification(profile_id):
     data = request.get_json()
     notify_user(
         profile_id=profile_id,
-        title=data.get("title", ""),
-        body=data.get("body", ""),
         sender_name=data.get("sender_name", ""),
         sender_id=data.get("sender_id", "unknown"),
-        conversation_id=data.get("conversation_id", "default")
+        conversation_id=data.get("conversation_id", "default"),
+        title_loc_key=data.get("title_loc_key", "GENERIC_NOTIFICATION_TITLE"),
+        loc_key=data.get("loc_key", "GENERIC_NOTIFICATION_BODY"),
+        title_loc_args=data.get("title_loc_args", []),
+        loc_args=data.get("loc_args", [])
     )
     return jsonify({"success": True}), 200
 

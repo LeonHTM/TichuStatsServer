@@ -30,14 +30,31 @@ def get_pending_request_count(profile_id: int) -> int:
     return FriendRequest.query.filter_by(receiver_id=profile_id, status="pending").count()
 
 
+def build_alert(
+    title_loc_key: str,
+    loc_key: str,
+    title_loc_args: list = None,
+    loc_args: list = None,
+):
+  
+    return {
+        "title-loc-key": title_loc_key,
+        "title-loc-args": title_loc_args or [],
+        "loc-key": loc_key,
+        "loc-args": loc_args or [],
+    }
+
+
 def send_push_notification(
     device_token: str,
-    title: str,
-    body: str,
     sender_name: str,
     sender_id: str,
     receiver_id: str,
     conversation_id: str,
+    title_loc_key: str,
+    loc_key: str,
+    title_loc_args: list = None,
+    loc_args: list = None,
     image_url: str = None,
     data: dict = {}
 ):
@@ -56,10 +73,12 @@ def send_push_notification(
 
     payload = {
         "aps": {
-            "alert": {
-                "title": title,
-                "body": body
-            },
+            "alert": build_alert(
+                title_loc_key=title_loc_key,
+                loc_key=loc_key,
+                title_loc_args=title_loc_args,
+                loc_args=loc_args,
+            ),
             "sound": "default",
             "badge": badge_count,
             "mutable-content": 1,
@@ -85,12 +104,14 @@ def send_push_notification(
 
 def send_accepted_notification(
     device_token: str,
-    title: str,
-    body: str,
     sender_name: str,
     sender_id: str,
     receiver_id: str,
     conversation_id: str,
+    title_loc_key: str,
+    loc_key: str,
+    title_loc_args: list = None,
+    loc_args: list = None,
     image_url: str = None,
 ):
     token = get_apns_token()
@@ -108,10 +129,12 @@ def send_accepted_notification(
 
     payload = {
         "aps": {
-            "alert": {
-                "title": title,
-                "body": body
-            },
+            "alert": build_alert(
+                title_loc_key=title_loc_key,
+                loc_key=loc_key,
+                title_loc_args=title_loc_args,
+                loc_args=loc_args,
+            ),
             "sound": "default",
             "badge": badge_count,
             "mutable-content": 1,
@@ -135,12 +158,14 @@ def send_accepted_notification(
 
 def send_push_notifications_to_user(
     device_tokens: list[str],
-    title: str,
-    body: str,
     sender_name: str,
     sender_id: str,
     receiver_id: str,
     conversation_id: str,
+    title_loc_key: str,
+    loc_key: str,
+    title_loc_args: list = None,
+    loc_args: list = None,
     image_url: str = None,
     data: dict = {}
 ):
@@ -148,12 +173,14 @@ def send_push_notifications_to_user(
     for token in device_tokens:
         result = send_push_notification(
             device_token=token,
-            title=title,
-            body=body,
             sender_name=sender_name,
             sender_id=sender_id,
             receiver_id=receiver_id,
             conversation_id=conversation_id,
+            title_loc_key=title_loc_key,
+            loc_key=loc_key,
+            title_loc_args=title_loc_args,
+            loc_args=loc_args,
             image_url=image_url,
             data=data
         )
@@ -161,18 +188,22 @@ def send_push_notifications_to_user(
     return all(results)
 
 
-def notify_accepted(profile_id: int, title: str, body: str, sender_name: str,
-                    sender_id: str, conversation_id: str, image_url: str = None):
+def notify_accepted(profile_id: int, sender_name: str, sender_id: str,
+                    conversation_id: str, title_loc_key: str, loc_key: str,
+                    title_loc_args: list = None, loc_args: list = None,
+                    image_url: str = None):
     tokens = get_device_tokens(profile_id)
     for token in tokens:
         send_accepted_notification(
             device_token=token,
-            title=title,
-            body=body,
             sender_name=sender_name,
             sender_id=sender_id,
             receiver_id=str(profile_id),
             conversation_id=conversation_id,
+            title_loc_key=title_loc_key,
+            loc_key=loc_key,
+            title_loc_args=title_loc_args,
+            loc_args=loc_args,
             image_url=image_url
         )
 
@@ -184,17 +215,21 @@ def get_device_tokens(profile_id: int) -> list[str]:
 
 
 # Helper to notify a user on all devices
-def notify_user(profile_id: int, title: str, body: str, sender_name: str,
-                sender_id: str, conversation_id: str, image_url: str = None):
+def notify_user(profile_id: int, sender_name: str, sender_id: str,
+                conversation_id: str, title_loc_key: str, loc_key: str,
+                title_loc_args: list = None, loc_args: list = None,
+                image_url: str = None):
     tokens = get_device_tokens(profile_id)
     if tokens:
         send_push_notifications_to_user(
             device_tokens=tokens,
-            title=title,
-            body=body,
             sender_name=sender_name,
             sender_id=sender_id,
             receiver_id=str(profile_id),
             conversation_id=conversation_id,
+            title_loc_key=title_loc_key,
+            loc_key=loc_key,
+            title_loc_args=title_loc_args,
+            loc_args=loc_args,
             image_url=image_url
         )

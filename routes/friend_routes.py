@@ -50,11 +50,12 @@ def add_friend(profile_id, friend_id):
     image_url = f"{BASE_URL}/{profile.profile_image_url}" if profile.profile_image_url else None
     notify_accepted(
         profile_id=friend_id,
-        title="Friend Request Accepted",
-        body=f"You and {profile.name} are now friends",
         sender_name=profile.name,
         sender_id=str(profile_id),
         conversation_id=conversation_id,
+        title_loc_key="notifictaion.friendRequest.accepted.title",
+        loc_key="notification.friendRequest.accepted.body",
+        loc_args=[profile.name],
         image_url=image_url
     )
     return jsonify({"message": "Friendship created"}), 201
@@ -107,11 +108,12 @@ def send_friend_request(sender_id, receiver_id):
             image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
             notify_accepted(
                 profile_id=receiver_id,
-                title="Friend Request Accepted",
-                body=f"You and {sender.name} are now friends",
                 sender_name=sender.name,
                 sender_id=str(sender_id),
                 conversation_id=conversation_id,
+                title_loc_key="notification.friendRequest.accepted.title",
+                loc_key="notification.friendRequest.accepted.body",
+                loc_args=[sender.name],
                 image_url=image_url
             )
             return jsonify({"message": "Mutual request detected — friendship automatically created"}), 201
@@ -129,11 +131,12 @@ def send_friend_request(sender_id, receiver_id):
     image_url = f"{BASE_URL}/{sender.profile_image_url}" if sender.profile_image_url else None
     notify_user(
         profile_id=receiver_id,
-        title="New Friend Request",
-        body=f"{sender.name} sent you a friend request",
         sender_name=sender.name,
         sender_id=str(sender_id),
         conversation_id=conversation_id,
+        title_loc_key="notification.friendRequest.title",
+        loc_key="notification.friendRequest.body",
+        loc_args=[sender.name],
         image_url=image_url
     )
     return jsonify({"message": "Friend request sent"}), 201
@@ -174,11 +177,12 @@ def respond_to_request(receiver_id, sender_id):
         image_url = f"{BASE_URL}/{receiver.profile_image_url}" if receiver and receiver.profile_image_url else None
         notify_accepted(
             profile_id=sender_id,
-            title="Friend Request Accepted",
-            body=f"{receiver.name} accepted your friend request",
             sender_name=receiver.name,
             sender_id=str(receiver_id),
             conversation_id=conversation_id,
+            title_loc_key="notification.friendRequest.accepted.title",
+            loc_key="notification.friendRequest.accepted.by.body",
+            loc_args=[receiver.name],
             image_url=image_url
         )
     return jsonify({"message": f"Request {action}"}), 200
