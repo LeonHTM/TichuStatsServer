@@ -254,7 +254,7 @@ def calculateStats(user_id, timeframe="all_time"):
     # -------------------------
     # ADDICT — games played
     # -------------------------
-    addict = len(all_games)
+    addict = len(finished_games)
 
     # -------------------------
     # WINNER PERCENTAGE
