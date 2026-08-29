@@ -19,3 +19,5 @@ Split into Logic, Routes, Static, Templates and Uploads.
 Everything runs in tichuServer.py which also hosts some of the most important routes.
 
 If you want to know about the Config.py [contact me](mailto:leon@tichu.dev).
+
+AI was used on this Project.
