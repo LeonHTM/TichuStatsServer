@@ -6,7 +6,6 @@ from logic.roundLogic import Round
 class Profile(db.Model):
     __tablename__ = "profiles"
 
-    # Basic Info
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
     email = db.Column(db.String(255), unique=True, nullable=False)
@@ -28,17 +27,6 @@ class Profile(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "name": self.name,
-            "profile_image_url": self.profile_image_url,
-            "date_added": self.date_added.isoformat() if self.date_added else None,
-            "elo": self.elo,
-            "is_admin": self.is_admin,
-        }
-
-    def to_dictM(self):
-        return {
-            "id": self.id,
-            "email": self.email,
             "name": self.name,
             "profile_image_url": self.profile_image_url,
             "date_added": self.date_added.isoformat() if self.date_added else None,
@@ -89,8 +77,6 @@ class ProfileSettings(db.Model):
             "sort_by_profiles": self.sort_by_profile,
             "sort_by_stats":    self.sort_by_stats,
         }
-
-
 
 
 
@@ -171,30 +157,34 @@ class UserDeviceToken(db.Model):
 from datetime import datetime, timedelta
 import time
 
+#Calculate Stats for user and given Timeframe
 def calculateStats(user_id, timeframe="all_time"):
-    start = time.time()
+    #KEEP THIS IMPORT INSIDE OR IT BREAKS IDK Y
     from logic.gameLogic import Game
+    #How exact the calcalutions should be
+    round_to = 4
 
+    #To test how long calclaution took
+    start = time.time()
+
+    #User
     user = Profile.query.get(user_id)
     if not user:
         return
-
     uid = user_id
 
-    # -------------------------
-    # TIMEFRAME FILTER
-    # -------------------------
+    #TimeFrames
     now = datetime.utcnow()
     if timeframe == "day":
-        since = now - timedelta(days=1)
+        timeframe = now - timedelta(days=1)
     elif timeframe == "week":
-        since = now - timedelta(weeks=1)
+        timeframe = now - timedelta(weeks=1)
     elif timeframe == "month":
-        since = now - timedelta(days=30)
+        timeframe = now - timedelta(days=30)
     elif timeframe == "year":
-        since = now - timedelta(days=365)
+        timeframe = now - timedelta(days=365)
     else:
-        since = None  # all_time
+        timeframe = None  # all_time
 
     def get_team(game):
         if uid in (game.team1_player1_id, game.team1_player2_id):
@@ -206,17 +196,15 @@ def calculateStats(user_id, timeframe="all_time"):
             return (game.team2_player1_id, game.team2_player2_id)
         return (game.team1_player1_id, game.team1_player2_id)
 
-    def get_bombs(r):
+    def get_bombs(round):
         return {
-            r.first_profile_id: r.first_bombs,
-            r.second_profile_id: r.second_bombs,
-            r.third_profile_id: r.third_bombs,
-            r.fourth_profile_id: r.fourth_bombs,
+            round.first_profile_id: round.first_bombs,
+            round.second_profile_id: round.second_bombs,
+            round.third_profile_id: round.third_bombs,
+            round.fourth_profile_id: round.fourth_bombs,
         }.get(uid, 0)
 
-    # -------------------------
-    # QUERY GAMES
-    # -------------------------
+    #Take all the Games the user was part of
     games_query = Game.query.filter(
         db.or_(
             Game.team1_player1_id == uid,
@@ -225,17 +213,18 @@ def calculateStats(user_id, timeframe="all_time"):
             Game.team2_player2_id == uid,
         )
     )
-    if since:
-        games_query = games_query.filter(Game.date >= since)
+
+    #Filter games to take only the one in timeframe
+    if timeframe:
+        games_query = games_query.filter(Game.date >= timeframe)
 
     all_games = games_query.all()
     finished_games = [g for g in all_games if g.winner is not None]
+    #Also considers the Rounds of the Game you are in rn change ot finished_games if you want to take finsihed games
     game_ids = [g.id for g in all_games]
     game_map = {g.id: g for g in all_games}
 
-    # -------------------------
-    # QUERY ROUNDS
-    # -------------------------
+    #Get all the Rounds of all the gammes
     rounds_query = Round.query.filter(
         Round.game_id.in_(game_ids),
         Round.bool_win_round == True,
@@ -246,28 +235,24 @@ def calculateStats(user_id, timeframe="all_time"):
             Round.fourth_profile_id == uid,
         )
     )
-    if since:
-        rounds_query = rounds_query.filter(Round.date >= since)
+    #Take only Rounds in the timeframe
+    if timeframe:
+        rounds_query = rounds_query.filter(Round.date >= timeframe)
 
     all_rounds = rounds_query.all()
 
-    # -------------------------
-    # ADDICT — games played
-    # -------------------------
+    #Addict number of (finsihed) Games played
     addict = len(finished_games)
 
-    # -------------------------
-    # WINNER PERCENTAGE
-    # -------------------------
+    #Winner Percentage
     if finished_games:
+        #Sum up all the Wins 
         won = sum(1 for g in finished_games if get_team(g) == g.winner)
-        winner_percentage = round(won / len(finished_games), 4)
+        winner_percentage = round(won / len(finished_games), round_to) 
     else:
         winner_percentage = 0.0
 
-    # -------------------------
-    # TICHUMASTER — points per round
-    # -------------------------
+    #Tichumaster: Annoucement Points from all Rounds 
     tichu_points_total = 0
     for r in all_rounds:
         if uid in (r.announced_tichu or []):
@@ -277,39 +262,35 @@ def calculateStats(user_id, timeframe="all_time"):
         elif uid in (r.announced_pingu or []):
             tichu_points_total += 400 if r.first_profile_id == uid else -400
 
-    tichu_master = round(tichu_points_total / len(all_rounds), 4) if all_rounds else 0.0
+    tichu_master = round(tichu_points_total / len(all_rounds), round_to) if all_rounds else 0.0
 
-    # -------------------------
-    # VISIONARY — announced & was first rate
-    # -------------------------
+   #Visionary: Percentage when you were first and announced a tichu
     rounds_first = [r for r in all_rounds if r.first_profile_id == uid]
     if rounds_first:
+        #Sum up when you announced somthing
         announced_when_first = sum(
             1 for r in rounds_first
             if uid in (r.announced_tichu or [])
             or uid in (r.announced_big_tichu or [])
             or uid in (r.announced_pingu or [])
         )
-        visionary = round(announced_when_first / len(rounds_first), 4)
+        visionary = round(announced_when_first / len(rounds_first), round_to)
     else:
         visionary = 0.0
 
-    # -------------------------
-    # TEAMPLAYER — double win rate
-    # -------------------------
+    #Teamplayer: Double Win rate
     if all_rounds:
         double_wins = sum(
             1 for r in all_rounds
             if (get_team(game_map[r.game_id]) == 1 and r.double_win_team1)
             or (get_team(game_map[r.game_id]) == 2 and r.double_win_team2)
         )
-        teamplayer = round(double_wins / len(all_rounds), 4)
+        teamplayer = round(double_wins / len(all_rounds), round_to)
     else:
         teamplayer = 0.0
 
-    # -------------------------
-    # ANNOUNCER — % rounds with any announcement
-    # -------------------------
+    
+    # Announcer: Percentage how often you announce something
     if all_rounds:
         announced_rounds = sum(
             1 for r in all_rounds
@@ -317,13 +298,11 @@ def calculateStats(user_id, timeframe="all_time"):
             or uid in (r.announced_big_tichu or [])
             or uid in (r.announced_pingu or [])
         )
-        announcer = round(announced_rounds / len(all_rounds), 4)
+        announcer = round(announced_rounds / len(all_rounds), round_to)
     else:
         announcer = 0.0
 
-    # -------------------------
-    # SABOTEUR — % of opponent announcements that failed
-    # -------------------------
+    #Saboteur: percentage how often you destroyed an oponents tichu
     opponent_announcements = 0
     opponent_failed = 0
     for r in all_rounds:
@@ -335,42 +314,32 @@ def calculateStats(user_id, timeframe="all_time"):
                 if r.first_profile_id != opp:
                     opponent_failed += 1
 
-    saboteur = round(opponent_failed / opponent_announcements, 4) if opponent_announcements else 0.0
+    saboteur = round(opponent_failed / opponent_announcements, round_to) if opponent_announcements else 0.0
 
-    # -------------------------
-    # GAMBLER — tichu success rate
-    # -------------------------
+    #Gambler: Tichu success rate
     tichu_announced = [r for r in all_rounds if uid in (r.announced_tichu or [])]
     gambler = round(
-        sum(1 for r in tichu_announced if r.first_profile_id == uid) / len(tichu_announced), 4
+        sum(1 for r in tichu_announced if r.first_profile_id == uid) / len(tichu_announced), round_to
     ) if tichu_announced else 0.0
 
-    # -------------------------
-    # BIG GAMBLER — big tichu success rate
-    # -------------------------
+    #Big Gambler: Big Tichu success rate
     big_tichu_announced = [r for r in all_rounds if uid in (r.announced_big_tichu or [])]
     big_gambler = round(
-        sum(1 for r in big_tichu_announced if r.first_profile_id == uid) / len(big_tichu_announced), 4
+        sum(1 for r in big_tichu_announced if r.first_profile_id == uid) / len(big_tichu_announced), round_to
     ) if big_tichu_announced else 0.0
 
-    # -------------------------
-    # PINGU GAMBLER — pingu success rate
-    # -------------------------
+    #Pingu Gambler: Pingus success rate
     pingu_announced = [r for r in all_rounds if uid in (r.announced_pingu or [])]
     pingu_gambler = round(
-        sum(1 for r in pingu_announced if r.first_profile_id == uid) / len(pingu_announced), 4
+        sum(1 for r in pingu_announced if r.first_profile_id == uid) / len(pingu_announced), round_to
     ) if pingu_announced else 0.0
 
-    # -------------------------
-    # BOMBER — bombs per round
-    # -------------------------
+    #Bomber: Bombs per round
     bomber = round(
-        sum(get_bombs(r) for r in all_rounds) / len(all_rounds), 4
+        sum(get_bombs(r) for r in all_rounds) / len(all_rounds), round_to
     ) if all_rounds else 0.0
 
-    # -------------------------
-    # SAVE TO profile_stats TABLE
-    # -------------------------
+    #Save to database
     stats = ProfileStats.query.filter_by(profile_id=uid, timeframe=timeframe).first()
     if not stats:
         stats = ProfileStats(profile_id=uid, timeframe=timeframe)
@@ -389,5 +358,6 @@ def calculateStats(user_id, timeframe="all_time"):
     stats.bomber            = bomber
 
     db.session.commit()
+    #To measure how long calcuation took pt.2 
     elapsed = time.time() - start
-    #print(f"calculateStats({user_id}, {timeframe}) took {elapsed:.3f}s | Winner: {winner_percentage} | Master: {tichu_master} | Visionary: {visionary} | Addict: {addict}")
+    #print(f"calculateStats({user_id}, {timeframe}) took {elapsed:.3f}s }")

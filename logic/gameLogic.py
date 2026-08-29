@@ -31,9 +31,7 @@ class Game(db.Model):
 
     rounds = db.relationship("Round", back_populates="game", lazy=True, cascade="all, delete-orphan")
 
-    # ------------------------
-    # VALIDATION
-    # ------------------------
+    #Validate Game
     def validate(self):
         players = [
             self.team1_player1_id,
@@ -51,9 +49,7 @@ class Game(db.Model):
         if self.target <= 0:
             raise ValueError("Invalid target value")
 
-    # ------------------------
-    # SERIALIZATION
-    # ------------------------
+    # Game to Dictionary
     def to_dict(self):
         return {
             "id": self.id,
@@ -78,7 +74,7 @@ class Game(db.Model):
             "rated": self.rated,
         }
 
-
+#EloHistory Point to save change in Elo
 class EloHistory(db.Model):
     __tablename__ = "elo_history"
 
@@ -88,7 +84,7 @@ class EloHistory(db.Model):
     elo_change = db.Column(db.Float, nullable=False)
     changed_at = db.Column(db.DateTime, server_default=db.func.now())
 
-
+#Recalculate the current Points for each Team in a Tichu Game
 def recalculate(game_id):
     game = Game.query.get(game_id)
 
@@ -160,7 +156,7 @@ def recalculate(game_id):
         "winner": game.winner,
     }), 200
 
-
+#Finish Game: Elo gets calcaluted for all Players if no Guests are present
 def finish_game(game_id):
     game = Game.query.get(game_id)
 
@@ -185,14 +181,16 @@ def finish_game(game_id):
 
     calculate_elo(game_id, game.winner)
 
-# gameLogic.py — fix GUEST_IDS → ids
+# If a user gets deleted he gets replaced with a guest in active Games
 def handle_user_deleted(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return None, 404
 
+    #Ids of Guests
     ids = [-1, -2, -3, -4]
 
+    #All Active Games
     active_games = Game.query.filter(
         Game.winner == None,
         db.or_(
@@ -203,22 +201,26 @@ def handle_user_deleted(profile_id):
         )
     ).all()
 
+    
     for game in active_games:
+
+        #Check which Players are already Guests
         existing_guests_in_game = set()
         for slot in [game.team1_player1_id, game.team1_player2_id,
                      game.team2_player1_id, game.team2_player2_id]:
             if slot is not None and slot in ids:  
                 existing_guests_in_game.add(slot)
-
+        #replacement is first guest that is not already in Game
         replacement_id = None
         for guest_id in ids:
             if guest_id not in existing_guests_in_game:
                 replacement_id = guest_id
                 break
-
+        
         if replacement_id is None:
             return {"error": f"Cannot delete profile: active game {game.id} has no available guest slot."}, 409
 
+        #Replace the deleted Profile wiht Guest
         if game.team1_player1_id == profile_id:
             game.team1_player1_id = replacement_id
         elif game.team1_player2_id == profile_id:
@@ -228,13 +230,22 @@ def handle_user_deleted(profile_id):
         elif game.team2_player2_id == profile_id:
             game.team2_player2_id = replacement_id
 
-        print(f"delete_profile: replaced profile {profile_id} with guest {replacement_id} in game {game.id}")
-        socketio.emit("game_updated", game.to_dict())
+        #If now are the Players are guest delete the Game
+        if game.team1_player1_id < 0 and game.team1_player2_id < 0 and game.team2_player1_id < 0 and game.team2_player2_id < 0:
+    
+                #Delete Game
+                db.session.delete(game)
+                db.session.commit()
+                socketio.emit("game_deleted", {"game_id": game.id})
+                return jsonify({"success": True}), 200
+        else:
+            print(f"delete_profile: replaced profile {profile_id} with guest {replacement_id} in game {game.id}")
+            socketio.emit("game_updated", game.to_dict())
 
     db.session.commit()
     return None, 200 
         
-
+#Function to calculate elo for all TimeFrames and Profiles in Game
 def calculate_elo(game_id, winner):
     winner1 = 0
     winner2 = 0
@@ -246,7 +257,7 @@ def calculate_elo(game_id, winner):
         winner2 = 0
         winner1 = 1
     else:
-        print("ERROR NO WINNER WAS GIVEN TO ELO CALCULATION")
+        print("ERROR: No winner was given for Calculation")
         return
 
     game = Game.query.get(game_id)
@@ -261,7 +272,7 @@ def calculate_elo(game_id, winner):
         print("ERROR: One or more players not found in DB")
         return
 
-    # Guest profiles have NULL elo — default to 1000
+    # Guest Profiles used to have null Elo not the case anymore
     def safe_elo(profile):
         return profile.elo if profile.elo is not None else 1000
 
@@ -273,12 +284,11 @@ def calculate_elo(game_id, winner):
     Exp1 = 1 / (1 + 10 ** ((team2_elo - team1_elo) / 400))
     Exp2 = 1 - Exp1
 
+    #Points gets scaled by how big the Target was
     multiplier = (game.target / 1000) * 20
     delta1 = round(multiplier * (winner1 - Exp1), 2)
     delta2 = round(multiplier * (winner2 - Exp2), 2)
 
-    print(f"Team 1 gets: {delta1}")
-    print(f"Team 2 gets: {delta2}")
 
     if game.rated:
         # Only update elo and write history for real (positive ID) players
@@ -290,8 +300,7 @@ def calculate_elo(game_id, winner):
                 p.elo = safe_elo(p) + delta
                 db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=delta))
     else:
-        print("ADDING NOT RATED")
-        # Only write zero-history for real players — guests have no EloHistory row
+        # Add ELoHistory Points for Users (will show up as line in Graph), do nothing for Guests
         for p in [team1_player1, team1_player2, team2_player1, team2_player2]:
             if p.id > 0:
                 db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=0))
@@ -304,6 +313,7 @@ def calculate_elo(game_id, winner):
         if p.id > 0
     ]
 
+    #calculateStats for all TimeFrames
     for playerId in playerIds:
         calculateStats(playerId, "all_time")
         calculateStats(playerId, "year")
@@ -311,8 +321,8 @@ def calculate_elo(game_id, winner):
         calculateStats(playerId, "week")
         calculateStats(playerId, "day")
 
+    #Commit and emit
     db.session.commit()
-
     socketio.emit("elo_updated", {
         "players": [
             {"id": p.id, "elo": safe_elo(p)}

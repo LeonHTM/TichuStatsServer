@@ -20,9 +20,8 @@ def login():
 
     token = create_access_token(identity=str(profile.id))
     return jsonify({"token": token, "id": profile.id}), 200
-
+#When first login in the App does not have an authToken yet, it uses appToken which is a Sectret String
 def app_token_required(f):
-    """Decorator for endpoints that should only be called by the app (no user token yet)."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -32,24 +31,24 @@ def app_token_required(f):
         return f(*args, **kwargs)
     return decorated
 
-
+#JWT for Client or Session for webpage requeired
 def jwt_or_session_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        # SwiftUI app — JWT header
+        # Client: JWT header
         try:
             verify_jwt_in_request()
             return fn(*args, **kwargs)
         except Exception:
             pass
 
-        # Browser — session cookie
+        # Browser: session cookie
         if session.get("jwt"):
             return fn(*args, **kwargs)
 
         # No valid auth
         if request.accept_mimetypes.accept_html:
-            return render_template("error.html"), 401  # ← error page for browsers
-        return jsonify({"error": "Unauthorized"}), 401  # ← JSON for API clients
+            return render_template("error.html"), 401  
+        return jsonify({"error": "Unauthorized"}), 401  
 
     return wrapper

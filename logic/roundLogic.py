@@ -36,12 +36,9 @@ class Round(db.Model):
     announced_big_tichu = db.Column(db.JSON, default=list)
     announced_pingu = db.Column(db.JSON, default=list)
 
-    # ADD THIS
     game = db.relationship("Game", back_populates="rounds")
 
-    # ------------------------
-    # VALIDATION
-    # ------------------------
+    # Validate
     def validate(self):
         for b in [
             self.first_bombs,
@@ -64,9 +61,7 @@ class Round(db.Model):
         if len(all_ann) != len(set(all_ann)):
             raise ValueError("A player can only announce one type")
 
-    # ------------------------
-    # SERIALIZATION
-    # ------------------------
+    #To dictionary
     def to_dict(self):
         return {
             "id": self.id,

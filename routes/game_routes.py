@@ -122,7 +122,6 @@ def delete_game(game_id):
     game = Game.query.get(game_id)
 
 
-
     playerIds = [game.team1_player1_id, game.team1_player2_id, game.team2_player1_id,game.team2_player2_id]
 
 
@@ -146,7 +145,7 @@ def delete_game(game_id):
 
 
 @game_bp.route("/game/<int:game_id>/rounds", methods=["GET"])
-#@jwt_or_session_required
+@jwt_or_session_required
 def get_game_rounds(game_id):
     game = Game.query.get(game_id)
 
@@ -208,6 +207,3 @@ def get_game(game_id):
 
     return jsonify(game.to_dict()), 200
 
-@game_bp.route("/test-route")
-def test_route():
-    return "OK"

@@ -110,11 +110,6 @@ def update_profile_settings(profile_id):
     return jsonify(settings.to_dict()), 200
 
 
-@profile_bp.route("/profilesM", methods=["GET"])
-@jwt_or_session_required
-def get_profilesM():
-    profiles = Profile.query.all()
-    return jsonify([p.to_dictM() for p in profiles])
 
 from datetime import datetime
 
@@ -314,6 +309,7 @@ def serve_image(filename):
 def logout(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
+        print("profile not found")
         return jsonify({"error": "Profile not found"}), 404
 
     data = request.get_json() or {}
