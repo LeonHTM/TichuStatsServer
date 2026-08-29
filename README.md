@@ -20,4 +20,4 @@ Everything runs in tichuServer.py which also hosts some of the most important ro
 
 If you want to know about the Config.py [contact me](mailto:leon@tichu.dev).
 
-**Hint:** AI was used on this Project.
+**Hint:** AI was used on this Project
