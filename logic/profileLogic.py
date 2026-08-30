@@ -176,15 +176,15 @@ def calculateStats(user_id, timeframe="all_time"):
     #TimeFrames
     now = datetime.utcnow()
     if timeframe == "day":
-        timeframe = now - timedelta(days=1)
+        timeframe_delta = now - timedelta(days=1)
     elif timeframe == "week":
-        timeframe = now - timedelta(weeks=1)
+        timeframe_delta = now - timedelta(weeks=1)
     elif timeframe == "month":
-        timeframe = now - timedelta(days=30)
+        timeframe_delta = now - timedelta(days=30)
     elif timeframe == "year":
-        timeframe = now - timedelta(days=365)
+        timeframe_delta = now - timedelta(days=365)
     else:
-        timeframe = None  # all_time
+        timeframe_delta = None  # all_time
 
     def get_team(game):
         if uid in (game.team1_player1_id, game.team1_player2_id):
@@ -215,8 +215,8 @@ def calculateStats(user_id, timeframe="all_time"):
     )
 
     #Filter games to take only the one in timeframe
-    if timeframe:
-        games_query = games_query.filter(Game.date >= timeframe)
+    if timeframe_delta:
+        games_query = games_query.filter(Game.date >= timeframe_delta)
 
     all_games = games_query.all()
     finished_games = [g for g in all_games if g.winner is not None]
@@ -236,8 +236,8 @@ def calculateStats(user_id, timeframe="all_time"):
         )
     )
     #Take only Rounds in the timeframe
-    if timeframe:
-        rounds_query = rounds_query.filter(Round.date >= timeframe)
+    if timeframe_delta:
+        rounds_query = rounds_query.filter(Round.date >= timeframe_delta)
 
     all_rounds = rounds_query.all()
 
