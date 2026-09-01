@@ -5,4 +5,5 @@ config.py
 .DS_Store
 uploads/
 shell.nix
+.well-known/
 

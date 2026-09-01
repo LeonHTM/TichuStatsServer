@@ -12,6 +12,7 @@ import os
 from routes.auth_routes import jwt_or_session_required
 from logic.profileLogic import Profile
 from logic.gameLogic import Game
+from flask import send_from_directory
 
 
 
@@ -38,6 +39,14 @@ def create_app():
     app.register_blueprint(game_bp)
     app.register_blueprint(round_bp)
 
+
+    @app.route("/.well-known/apple-app-site-association")
+    def apple_app_site_association():
+        return send_from_directory(
+            "/Users/leon/Desktop/TichuServer/.well-known",
+            "apple-app-site-association",
+            mimetype="application/json"
+        )
 
 
     @app.route("/", methods=["GET"])
