@@ -7,6 +7,7 @@ from routes.profile_routes import profile_bp
 from routes.friend_routes import friend_bp
 from routes.game_routes import game_bp
 from routes.round_routes import round_bp
+from routes.passkey_routes import passkey_bp
 from datetime import timedelta, datetime, timezone
 import os
 from routes.auth_routes import jwt_or_session_required
@@ -31,13 +32,14 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*", async_mode="threading", ping_interval=2, ping_timeout=3)
+    socketio.init_app(app, cors_allowed_BASE_URLs="*", async_mode="threading", ping_interval=2, ping_timeout=3)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(friend_bp)
     app.register_blueprint(game_bp)
     app.register_blueprint(round_bp)
+    app.register_blueprint(passkey_bp)
 
 
     @app.route("/.well-known/apple-app-site-association")
