@@ -7,10 +7,11 @@
 - Stores Profile Images
 - Hosts Webpages for Admin Access on the Web, which can interact with some of the Pages designed for the Client
 - Handles Notifications
+- Handles Passkeys
 
 ## **Code**
 Split into Logic, Routes, Static, Templates and Uploads.
-- Logic: All the Classes and Calculations for Profiles, Games, Rounds and Notifications
+- Logic: All the Classes and Calculations for Profiles, Games, Rounds, Passkeys and Notifications
 - Routes: All the Routes accessible by the Client and Admin Page
 - Static: Images and CSS for Webpages
 - Templates: HTML Pages
