@@ -47,6 +47,11 @@ def _name_taken(name: str) -> bool:
     return Profile.query.filter(db.func.lower(Profile.name) == name.lower()).first() is not None
 
 
+# Stable opaque WebAuthn user handle for a profile that already exists 
+def _webauthn_user_id(profile_id: int) -> bytes:
+    return profile_id.to_bytes(8, "big")
+
+
 def _save_challenge(challenge_id: str, profile_id: int | None, challenge: bytes, ceremony_type: str):
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=CHALLENGE_TTL_SECONDS)
     db.session.add(
@@ -172,6 +177,89 @@ def register_verify():
 
     token = create_access_token(identity=str(profile.id))
     return jsonify({"token": token, "id": profile.id})
+
+
+# Add a passkey to an already logged-in account (e.g. one made by email).
+# Real user JWT, not the app token — this is a settings action. Existing
+# credentials get excluded so the same authenticator can't register twice.
+@passkey_bp.post("/add/options")
+@jwt_required()
+def add_options():
+    profile = Profile.query.get(int(get_jwt_identity()))
+    if profile is None:
+        return jsonify({"error": "unknown_user"}), 404
+
+    existing = Credential.query.filter_by(profile_id=profile.id).all()
+    exclude_credentials = [PublicKeyCredentialDescriptor(id=c.credential_id) for c in existing]
+
+    options = generate_registration_options(
+        rp_id=RP_ID,
+        rp_name=RP_NAME,
+        user_id=_webauthn_user_id(profile.id),
+        user_name=profile.name or f"player-{profile.id}",
+        user_display_name=profile.name or f"Player {profile.id}",
+        attestation=AttestationConveyancePreference.NONE,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            resident_key=ResidentKeyRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
+        ),
+        exclude_credentials=exclude_credentials,
+    )
+
+    challenge_id = str(uuid.uuid4())
+    _save_challenge(challenge_id, profile.id, options.challenge, "registration")
+
+    body = json.loads(options_to_json(options))
+    body["challengeId"] = challenge_id
+    return jsonify(body)
+
+
+@passkey_bp.post("/add/verify")
+@jwt_required()
+def add_verify():
+    profile_id = int(get_jwt_identity())
+
+    data = request.get_json(silent=True) or {}
+    challenge_id = data.get("challengeId")
+    credential = data.get("credential")
+    if not challenge_id or not credential:
+        return jsonify({"error": "invalid_request"}), 400
+
+    popped = _pop_challenge(challenge_id, "registration")
+    if popped is None:
+        return jsonify({"error": "challenge_expired"}), 400
+    stored_profile_id, expected_challenge = popped
+
+    # Challenge must have been minted for THIS logged-in profile — stops
+    # finishing a ceremony against a different account than it started on.
+    if stored_profile_id != profile_id:
+        return jsonify({"error": "challenge_mismatch"}), 400
+
+    try:
+        parsed_credential = parse_registration_credential_json(json.dumps(credential))
+        verification = verify_registration_response(
+            credential=parsed_credential,
+            expected_challenge=expected_challenge,
+            expected_rp_id=RP_ID,
+            expected_origin=ORIGIN,
+            require_user_verification=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": "verification_failed", "detail": str(exc)}), 400
+
+    transports = credential.get("transports")
+    new_credential = Credential(
+        profile_id=profile_id,
+        credential_id=verification.credential_id,
+        public_key=verification.credential_public_key,
+        sign_count=verification.sign_count,
+        transports=",".join(transports) if transports else None,
+    )
+    db.session.add(new_credential)
+    db.session.commit()
+
+    return jsonify({"success": True, "credential": new_credential.to_dict()})
 
 
 # Connecting an email to an existing account
