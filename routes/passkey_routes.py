@@ -47,7 +47,7 @@ def _name_taken(name: str) -> bool:
     return Profile.query.filter(db.func.lower(Profile.name) == name.lower()).first() is not None
 
 
-# Stable opaque WebAuthn user handle for a profile that already exists 
+# Stable opaque WebAuthn user handle for a profile that already exists —
 def _webauthn_user_id(profile_id: int) -> bytes:
     return profile_id.to_bytes(8, "big")
 
