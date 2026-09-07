@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, session, render_template
+from flask import Flask, request, redirect, session, render_template, send_from_directory
 from flask_jwt_extended import create_access_token
 from extensions import db, socketio, jwt
 from config import DB_PASSWORD, DB_USER, DB_HOST, DB_NAME, UPLOAD_FOLDER, JWT_KEY, SECRET_KEY, BROWSER_PASSWORD, SESSION_MINUTES
@@ -13,7 +13,7 @@ import os
 from routes.auth_routes import jwt_or_session_required
 from logic.profileLogic import Profile
 from logic.gameLogic import Game
-from flask import send_from_directory
+
 
 
 

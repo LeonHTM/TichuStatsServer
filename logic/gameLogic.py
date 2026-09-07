@@ -109,6 +109,8 @@ def recalculate(game_id):
     winning_round_found = False
 
     for r in rounds:
+        was_ended_before_this_round = game_ended
+
         if not game_ended:
             game.current_points_team1 += r.tichu_points_team1 + r.round_points_team1
             game.current_points_team2 += r.tichu_points_team2 + r.round_points_team2
@@ -133,13 +135,12 @@ def recalculate(game_id):
                     game.current_points_team2 >= game.target and
                     game.current_points_team2 > game.current_points_team1
                 ):
-                    print("would have finished")
                     game.winner = 2
 
-                r.bool_win_round = True
-
-        else:
-            r.bool_win_round = False
+        # This round counts unless the game had already ended
+        # *before* we got to it. This covers both cases from the spec:
+        # still in progress -> True, and the round that finishes it -> True.
+        r.bool_win_round = not was_ended_before_this_round
 
     if not winning_round_found:
         for r in rounds:

@@ -193,7 +193,7 @@ def get_profile_games(profile_id):
     }), 200
 
 @game_bp.route("/recalculate_game/<int:game_id>", methods=["POST"])
-@jwt_required()
+@jwt_or_session_required
 def recalculate_route(game_id):
     return recalculate(game_id)
 

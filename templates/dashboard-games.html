@@ -135,10 +135,15 @@
         <td class="td-target">{{ g.target }}</td>
 
         <td>
-          <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
-            Delete
-          </button>
-        </td>
+  <div class="row-actions">
+    <button class="recalc-btn" onclick="recalculateGame(event, {{ g.id }})">
+      Recalculate
+    </button>
+    <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
+      Delete
+    </button>
+  </div>
+</td>
 
       </tr>
 
@@ -543,6 +548,35 @@ async function deleteGame(event, id) {
 
   document.querySelector(`tr.game-row[data-id="${id}"]`)?.remove();
   document.querySelector(`#expand-${id}`)?.remove();
+}
+</script>
+<script>
+async function recalculateGame(event, id) {
+  event.stopPropagation();
+
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Recalculating...";
+
+  try {
+    const res = await fetch(`/recalculate_game/${id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Failed to recalculate game");
+      return;
+    }
+  } catch (e) {
+    alert("Network error while recalculating game");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Recalculate";
+  }
 }
 </script>
 
