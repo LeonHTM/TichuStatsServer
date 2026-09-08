@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session, redirect, render_template
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from logic.profileLogic import Profile
+from logic.authLogic import generate_and_send_code, verify_code
 from functools import wraps
 from config import APP_SECRET_TOKEN
 
@@ -20,6 +21,7 @@ def login():
 
     token = create_access_token(identity=str(profile.id))
     return jsonify({"token": token, "id": profile.id}), 200
+
 #When first login in the App does not have an authToken yet, it uses appToken which is a Sectret String
 def app_token_required(f):
     from functools import wraps
@@ -52,3 +54,43 @@ def jwt_or_session_required(fn):
         return jsonify({"error": "Unauthorized"}), 401  
 
     return wrapper
+
+
+@auth_bp.route("/login/request-code/<email>", methods=["POST"])
+@app_token_required
+def request_login_code(email):
+    email = email.strip().lower()
+
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+
+    # Works for both existing profiles (login) and new emails (sign up) —
+    # a code is sent either way to verify ownership of the email.
+    generate_and_send_code(email)
+
+    return jsonify({"message": "Code sent."}), 200
+
+
+@auth_bp.route("/login/verify-code/<email>/<code>", methods=["POST"])
+@app_token_required
+def verify_login_code(email, code):
+    email = email.strip().lower()
+    code = code.strip()
+
+    if not email or not code:
+        print("Email and code reuquired")
+        return jsonify({"error": "Email and code required"}), 400
+
+    if not verify_code(email, code):
+        print("Expired code")
+        return jsonify({"error": "Invalid or expired code"}), 401
+
+    profile = Profile.query.filter_by(email=email).first()
+
+    if profile:
+        # Existing user — log them in
+        token = create_access_token(identity=str(profile.id))
+        return jsonify({"verified": True, "exists": True, "token": token, "id": profile.id}), 200
+
+    
+    return jsonify({"verified": True, "exists": False}), 200
