@@ -80,12 +80,13 @@
 
       <!-- MAIN ROW -->
       <tr class="game-row"
-          data-id="{{ g.id }}"
-          data-date="{{ g.date.isoformat() if g.date else '' }}"
-          data-points="{{ [g.points1, g.points2] | max }}"
-          data-status="{{ status }}"
-          data-players="{{ g.team1_p1 }} {{ g.team1_p2 }} {{ g.team2_p1 }} {{ g.team2_p2 }}"
-          onclick="toggleExpand({{ g.id }})">
+        data-id="{{ g.id }}"
+        data-date="{{ g.date.isoformat() if g.date else '' }}"
+        data-points="{{ [g.points1, g.points2] | max }}"
+        data-status="{{ status }}"
+        data-winner="{{ g.winner if g.winner is not none else '' }}"
+        data-players="{{ g.team1_p1 }} {{ g.team1_p2 }} {{ g.team2_p1 }} {{ g.team2_p2 }}"
+        onclick="toggleExpand({{ g.id }})">
 
         <td class="td-expand">
           <span class="expand-chevron" id="chevron-{{ g.id }}">
@@ -99,7 +100,7 @@
 
         <td>
           <span class="badge {{ status }}">
-            {% if g.winner %}Team {{ g.winner }} won{% else %}Ongoing{% endif %}
+            {% if g.winner and g.winner != 3%}Team{{ g.winner }} won{%elif g.winner == 3%}Tie{% else %}Ongoing{% endif %}
           </span>
         </td>
 
@@ -502,6 +503,9 @@
   socket.on("round_created",     () => location.reload());
   socket.on("round_updated",     () => location.reload());
   socket.on("round_deleted",     () => location.reload());
+  socket.on("round_deleted",     () => location.reload());
+  socket.on("game_target_updated",     () => location.reload());
+
 </script>
 
 <script>
@@ -558,12 +562,19 @@ async function recalculateGame(event, id) {
   btn.disabled = true;
   btn.textContent = "Recalculating...";
 
+  const row = document.querySelector(`tr.game-row[data-id="${id}"]`);
+  const tie = row?.dataset.winner === "3";
+
   try {
-    const res = await fetch(`/recalculate_game/${id}`, {
+    const res = await fetch(`/recalculate_game`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
-      }
+      },
+      body: JSON.stringify({
+        game_id: id,
+        tie: tie
+      })
     });
 
     if (!res.ok) {
@@ -571,6 +582,12 @@ async function recalculateGame(event, id) {
       alert(err.error || "Failed to recalculate game");
       return;
     }
+
+    const data = await res.json();
+    console.log("Recalculated game:", data);
+    // No manual DOM update needed here — the server emits "game_recalculated"
+    // over socket.io, which triggers location.reload() and refreshes everything.
+
   } catch (e) {
     alert("Network error while recalculating game");
   } finally {

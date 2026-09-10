@@ -56,10 +56,49 @@ def add_game():
 
     return jsonify(game.to_dict()), 201
 
-@game_bp.route("/finish_game/<int:game_id>", methods=["POST"])
+
+@game_bp.route("/game/edit_target",methods=["POST"])
 @jwt_or_session_required
-def finish_game_route(game_id):
+def edit_target_route():
     from logic.gameLogic import Game
+    data = request.get_json()
+    if not data or not data.get("game_id"):
+            return jsonify({"error": "game_id is required"}), 400
+
+    game_id = data["game_id"]
+    updated_target = data["target"]
+    
+
+    game = Game.query.get(game_id)
+
+    if not game:
+            print("Game not found")
+            return jsonify({"error": "Game not found"}), 404
+    game.target = updated_target
+
+    recalculate(game_id)
+
+    db.session.commit()
+    socketio.emit("game_target_updated", {"game_id": game_id,"target":updated_target})
+    return jsonify({"success": True}), 200
+
+
+
+@game_bp.route("/finish_game", methods=["POST"])
+@jwt_or_session_required
+def finish_game_route():
+    from logic.gameLogic import Game
+
+    print("FINISH GAME")
+
+    data = request.get_json()
+    if not data or not data.get("game_id"):
+                return jsonify({"error": "game_id is required"}), 400
+
+    game_id = data["game_id"]
+    tie = data["tie"]
+
+    print(f"FINSIH GAME: game_ID: {game_id} und {tie}")
     
     game = Game.query.get(game_id)
     if not game:
@@ -71,8 +110,8 @@ def finish_game_route(game_id):
         print(f"{game.calculated}")
         return jsonify({"error": "Game already finished"}), 400
 
-    recalculate(game_id)
-    finish_game(game_id)
+    recalculate(game_id,tie)
+    finish_game(game_id,tie)
     socketio.emit("game_finished", {"game_id": game_id})
     return jsonify({"success": True}), 200
 
@@ -192,10 +231,19 @@ def get_profile_games(profile_id):
         "games": [g.to_dict() for g in games]
     }), 200
 
-@game_bp.route("/recalculate_game/<int:game_id>", methods=["POST"])
+@game_bp.route("/recalculate_game", methods=["POST"])
 @jwt_or_session_required
-def recalculate_route(game_id):
-    return recalculate(game_id)
+def recalculate_route():
+
+    data = request.get_json()
+    if not data or not data.get("game_id"):
+                return jsonify({"error": "game_id is required"}), 400
+    
+    game_id = data["game_id"]
+    tie = data["tie"]
+
+
+    return recalculate(game_id,tie)
 
 @game_bp.route("/game/<int:game_id>", methods=["GET"])
 @jwt_required()

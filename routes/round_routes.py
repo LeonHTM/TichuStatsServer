@@ -449,8 +449,8 @@ def edit_round(round_id):
     
     recalculate(game.id)
 
-    game.current_points_team1 = sum(r.round_points_team1 + r.tichu_points_team1 for r in game.rounds)
-    game.current_points_team2 = sum(r.round_points_team2 + r.tichu_points_team2 for r in game.rounds)
+    #game.current_points_team1 = sum(r.round_points_team1 + r.tichu_points_team1 for r in game.rounds)
+    #game.current_points_team2 = sum(r.round_points_team2 + r.tichu_points_team2 for r in game.rounds)
 
     db.session.commit()
 
@@ -473,8 +473,8 @@ def delete_round(round_id):
     db.session.flush()
 
     recalculate(game.id)
-    game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
-    game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
+    #game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
+    #game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
 
     db.session.commit()
 

@@ -85,7 +85,7 @@ class EloHistory(db.Model):
     changed_at = db.Column(db.DateTime, server_default=db.func.now())
 
 #Recalculate the current Points for each Team in a Tichu Game
-def recalculate(game_id):
+def recalculate(game_id,tie=False):
     game = Game.query.get(game_id)
 
     if not game:
@@ -102,49 +102,40 @@ def recalculate(game_id):
     game.current_points_team2 = 0
     game.winner = None
 
-    def still_in_game(t1, t2, target):
-        return not ((t1 >= target and t1 > t2) or (t2 >= target and t2 > t1))
+    if tie : 
+        for round in rounds:
+                    game.current_points_team1 = game.current_points_team1 + round.round_points_team1 + round.tichu_points_team1
+                    game.current_points_team2 = game.current_points_team2 + round.round_points_team2 + round.tichu_points_team2
+        game.winner = 3
+    else:
 
-    game_ended = False
-    winning_round_found = False
 
-    for r in rounds:
-        was_ended_before_this_round = game_ended
+        def win_condition(current_points_team1, current_points_team2,target):
+            return (current_points_team1 >= target and current_points_team1 > current_points_team2) or (current_points_team2 >= target and current_points_team2 > current_points_team1) 
 
-        if not game_ended:
-            game.current_points_team1 += r.tichu_points_team1 + r.round_points_team1
-            game.current_points_team2 += r.tichu_points_team2 + r.round_points_team2
+        #Tracks if this is the final round of reaching the target
+        reached_target = False
 
-            cond = still_in_game(
-                game.current_points_team1,
-                game.current_points_team2,
-                game.target
-            )
+        for round in rounds:
+            game.current_points_team1 = game.current_points_team1 + round.round_points_team1 + round.tichu_points_team1
+            game.current_points_team2 = game.current_points_team2 + round.round_points_team2 + round.tichu_points_team2
 
-            if not cond:
-                game_ended = True
-                winning_round_found = True
-
-                if (
-                    game.current_points_team1 >= game.target and
-                    game.current_points_team1 > game.current_points_team2
-                ):
-                    game.winner = 1
-
-                elif (
-                    game.current_points_team2 >= game.target and
-                    game.current_points_team2 > game.current_points_team1
-                ):
-                    game.winner = 2
-
-        # This round counts unless the game had already ended
-        # *before* we got to it. This covers both cases from the spec:
-        # still in progress -> True, and the round that finishes it -> True.
-        r.bool_win_round = not was_ended_before_this_round
-
-    if not winning_round_found:
-        for r in rounds:
-            r.bool_win_round = True
+            if not win_condition(game.current_points_team1, game.current_points_team2,game.target):
+                round.bool_win_round = True
+            else:
+                if reached_target == False:
+                    reached_target = True
+                    round.bool_win_round = True
+                    #When players choose tie the taget gets set to the poitns of the team with mroe poitns so
+                    if game.current_points_team1 > game.current_points_team2:
+                        game.winner = 1
+                    elif game.current_points_team2 > game.current_points_team1:
+                        game.winner = 2
+                else:
+                    round.bool_win_round = False
+                    game.current_points_team1 = game.current_points_team1 - round.round_points_team1 - round.tichu_points_team1
+                    game.current_points_team2 = game.current_points_team2 - round.round_points_team2 - round.tichu_points_team2
+        
 
     db.session.commit()
 
@@ -158,7 +149,7 @@ def recalculate(game_id):
     }), 200
 
 #Finish Game: Elo gets calcaluted for all Players if no Guests are present
-def finish_game(game_id):
+def finish_game(game_id,tie=False):
     game = Game.query.get(game_id)
 
     if not game:
@@ -173,7 +164,7 @@ def finish_game(game_id):
         game.team2_player2_id
     ]
 
-    if any(p in (-1, -2, -3, -4) for p in player_ids):
+    if any(p in (-1, -2, -3, -4) for p in player_ids) or tie==True:
         game.rated = False
     else:
         game.rated = True
@@ -257,6 +248,9 @@ def calculate_elo(game_id, winner):
     elif winner == 1:
         winner2 = 0
         winner1 = 1
+    elif winner == 3:
+        winner2 = 1
+        winner1 = 1
     else:
         print("ERROR: No winner was given for Calculation")
         return
@@ -299,12 +293,14 @@ def calculate_elo(game_id, winner):
         ]:
             if p.id > 0:
                 p.elo = safe_elo(p) + delta
-                db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=delta))
+                db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=delta,changed_at=game.date))
     else:
         # Add ELoHistory Points for Users (will show up as line in Graph), do nothing for Guests
         for p in [team1_player1, team1_player2, team2_player1, team2_player2]:
             if p.id > 0:
-                db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=0))
+                db.session.add(EloHistory(profile_id=p.id, game_id=game_id, elo_change=0,changed_at=game.date))
+
+
 
     game.calculated = True
 
