@@ -14,6 +14,7 @@ from routes.auth_routes import jwt_or_session_required
 from logic.profileLogic import Profile
 from logic.gameLogic import Game
 from logic.authLogic import LoginCode
+from sqlalchemy.engine import URL
 
 
 
@@ -21,8 +22,8 @@ from logic.authLogic import LoginCode
 
 def create_app():
     app = Flask(__name__)
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    connection_url = URL.create("mysql+pymysql",username=DB_USER,password=DB_PASSWORD,host=DB_HOST,database=DB_NAME,)
+    app.config["SQLALCHEMY_DATABASE_URI"] = connection_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = JWT_KEY
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
