@@ -6,24 +6,36 @@ from config import (
     APNS_TEAM_ID,
     APNS_KEY,
     APNS_KEY_ID,
-    APNS_BUNDLE_ID
+    APNS_BUNDLE_ID,
+    APNS_HOST
 )
 
-APNS_HOST = "api.sandbox.push.apple.com"
+
+_cached_token = None
+_cached_token_time = 0
+_TOKEN_TTL_SECONDS = 55 * 60
 
 
 def get_apns_token():
+    global _cached_token, _cached_token_time
+
+    now = int(time.time())
+    if _cached_token and (now - _cached_token_time) < _TOKEN_TTL_SECONDS:
+        return _cached_token
+
     payload = {
         "iss": APNS_TEAM_ID,
-        "iat": time.time()
+        "iat": now
     }
 
-    return jwt.encode(
+    _cached_token = jwt.encode(
         payload,
         APNS_KEY,
         algorithm="ES256",
         headers={"kid": APNS_KEY_ID}
     )
+    _cached_token_time = now
+    return _cached_token
 
 
 def get_pending_request_count(profile_id: int) -> int:
@@ -36,13 +48,24 @@ def build_alert(
     title_loc_args: list = None,
     loc_args: list = None,
 ):
-  
+
     return {
         "title-loc-key": title_loc_key,
         "title-loc-args": title_loc_args or [],
         "loc-key": loc_key,
         "loc-args": loc_args or [],
     }
+
+
+def _log_apns_debug(device_token: str, response: httpx.Response):
+    # Helpful when diagnosing BadDeviceToken: confirms exactly what host,
+    # topic, and token prefix were used for this request.
+    token_preview = f"{device_token[:8]}...{device_token[-4:]}" if len(device_token) > 12 else device_token
+    print(f"APNs host: {APNS_HOST}")
+    print(f"APNs topic: {APNS_BUNDLE_ID}")
+    print(f"APNs device token: {token_preview} (len={len(device_token)})")
+    print(f"APNs status: {response.status_code}")
+    print(f"APNs response: {response.text}")
 
 
 def send_push_notification(
@@ -97,8 +120,7 @@ def send_push_notification(
 
     with httpx.Client(http2=True) as client:
         response = client.post(url, json=payload, headers=headers)
-        print(f"APNs status: {response.status_code}")
-        print(f"APNs response: {response.text}")
+        #_log_apns_debug(device_token, response)
         return response.status_code == 200
 
 
@@ -151,8 +173,7 @@ def send_accepted_notification(
 
     with httpx.Client(http2=True) as client:
         response = client.post(url, json=payload, headers=headers)
-        print(f"APNs status: {response.status_code}")
-        print(f"APNs response: {response.text}")
+        _log_apns_debug(device_token, response)
         return response.status_code == 200
 
 

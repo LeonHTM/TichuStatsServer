@@ -4,6 +4,7 @@ from extensions import db, socketio
 from logic.profileLogic import Profile
 from logic.roundLogic import Round
 from logic.gameLogic import Game, recalculate
+import random
 
 
 round_bp = Blueprint("round", __name__)
@@ -213,6 +214,18 @@ def add_round():
     if round_obj.double_win_team1 == True:
         if round_obj.tichu_points_team1 == 100:
             round_obj.round_points_team1 += 100
+
+            #When there is a double win there is not fourth only two thirds, but since i dont wanna change my whole code 
+            #it gets randombly decided who has which place so that in the average you dont get fourth more then third 
+            third_placeholder = round_obj.third_profile_id
+            fourth_placeholder = round_obj.fourth_profile_id
+
+            number = random.randint(0,1)
+            if number == 1:
+                round_obj.third_profile_id= fourth_placeholder
+                round_obj.fourth_profile_id= third_placeholder
+
+
         else:
             print(f"DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints has {round_obj.tichu_points_team1}, Team 2 has {round_obj.tichu_points_team2}")
             return jsonify({"error": "DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints"}), 404
@@ -220,6 +233,14 @@ def add_round():
     if round_obj.double_win_team2 == True:
         if round_obj.tichu_points_team2 == 100:
             round_obj.round_points_team2 += 100
+
+            third_placeholder = round_obj.third_profile_id
+            fourth_placeholder = round_obj.fourth_profile_id
+            
+            number = random.randint(0,1)
+            if number == 1:
+                            round_obj.third_profile_id= fourth_placeholder
+                            round_obj.fourth_profile_id= third_placeholder
         else:
             print("DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints")
             return jsonify({"error": "DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints"}), 404
@@ -434,6 +455,14 @@ def edit_round(round_id):
     if round_obj.double_win_team1 == True:
         if round_obj.tichu_points_team1 == 100:
             round_obj.round_points_team1 += 100
+
+            third_placeholder = round_obj.third_profile_id
+            fourth_placeholder = round_obj.fourth_profile_id
+                        
+            number = random.randint(0,1)
+            if number == 1:
+                                        round_obj.third_profile_id= fourth_placeholder
+                                        round_obj.fourth_profile_id= third_placeholder
         else:
             print(f"DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints has {round_obj.tichu_points_team1}, Team 2 has {round_obj.tichu_points_team2}")
             return jsonify({"error": "DOUBLE WIN ERROR: Team 1 Doesnt have 100 RoundPoints"}), 404
@@ -441,6 +470,15 @@ def edit_round(round_id):
     if round_obj.double_win_team2 == True:
         if round_obj.tichu_points_team2 == 100:
             round_obj.round_points_team2 += 100
+
+            third_placeholder = round_obj.third_profile_id
+            fourth_placeholder = round_obj.fourth_profile_id
+                        
+            number = random.randint(0,1)
+            if number == 1:
+                        round_obj.third_profile_id = fourth_placeholder
+                        round_obj.fourth_profile_id= third_placeholder
+
         else:
             print("DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints")
             return jsonify({"error": "DOUBLE WIN ERROR: Team 2 Doesnt have 100 RoundPoints"}), 404

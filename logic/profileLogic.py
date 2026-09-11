@@ -91,6 +91,7 @@ class ProfileStats(db.Model):
     calculated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     winner_percentage = db.Column(db.Float, default=0)
+    average_placement = db.Column(db.Float, default=0)
     tichu_master = db.Column(db.Float, default=0)
     visionary = db.Column(db.Float, default=0)
     addict = db.Column(db.Float, default=0)
@@ -113,6 +114,7 @@ class ProfileStats(db.Model):
             "timeframe": self.timeframe,
             "calculated_at": self.calculated_at.isoformat() if self.calculated_at else None,
             "winner_percentage": self.winner_percentage,
+            "average_placement" : self.average_placement,
             "tichu_master": self.tichu_master,
             "visionary": self.visionary,
             "addict": self.addict,
@@ -341,6 +343,42 @@ def calculateStats(user_id, timeframe="all_time"):
         sum(get_bombs(r) for r in all_rounds) / len(all_rounds), round_to
     ) if all_rounds else 0.0
 
+    def team(id,game):
+        if id == game.team1_player1_id or id == game.team1_player2_id:
+            return 1
+        elif id == game.team2_player1_id or id == game.team12_player2_id:
+            return 2
+        else:
+            print("error id not in team found")
+            return 0
+
+    #Avearge Placements
+    counter = 0
+    #Dont use round becasue python will confuse wiht round() funciton
+    total_placement = 0
+    placement_count = 0
+    for rnd in all_rounds:
+        counter = 0
+        if rnd.first_profile_id == uid:
+            counter = 1
+        elif rnd.second_profile_id == uid:
+            counter = 2
+        elif rnd.third_profile_id == uid:
+            counter = 3
+        elif rnd.fourth_profile_id == uid:
+            if rnd.double_win_team1 or rnd.double_win_team2:
+                counter = 3
+            else:
+                counter = 4
+        else:
+            print("Error player not in round")
+            continue
+
+        total_placement += counter
+        placement_count += 1
+
+    average_placement = round(total_placement / placement_count, round_to) if placement_count else 0.0
+
     #Save to database
     stats = ProfileStats.query.filter_by(profile_id=uid, timeframe=timeframe).first()
     if not stats:
@@ -348,6 +386,7 @@ def calculateStats(user_id, timeframe="all_time"):
         db.session.add(stats)
 
     stats.winner_percentage = winner_percentage
+    stats.average_placement = average_placement
     stats.tichu_master      = tichu_master
     stats.visionary         = visionary
     stats.addict            = addict
