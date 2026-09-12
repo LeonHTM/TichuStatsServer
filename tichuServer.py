@@ -173,19 +173,23 @@ def create_app():
                 "date":         g.date,
                 "target":       g.target,
                 "allow_pingus": g.allow_pingus,
-                "team1_p1":     name_map.get(g.team1_player1_id, "?"),
-                "team1_p2":     name_map.get(g.team1_player2_id, "?"),
-                "team2_p1":     name_map.get(g.team2_player1_id, "?"),
-                "team2_p2":     name_map.get(g.team2_player2_id, "?"),
-                "team1_p1_id":  g.team1_player1_id,
-                "team1_p2_id":  g.team1_player2_id,
-                "team2_p1_id":  g.team2_player1_id,
-                "team2_p2_id":  g.team2_player2_id,
+                "team1_p1":     name_map.get(g.team1_player1_id, "Unknown"),
+                "team1_p2":     name_map.get(g.team1_player2_id, "Unknown"),
+                "team2_p1":     name_map.get(g.team2_player1_id, "Unknown"),
+                "team2_p2":     name_map.get(g.team2_player2_id, "Unknown"),
+                "team1_p1_id":  g.team1_player1_id if g.team1_player1_id is not None else -1,
+                "team1_p2_id":  g.team1_player2_id if g.team1_player2_id is not None else -1,
+                "team2_p1_id":  g.team2_player1_id if g.team2_player1_id is not None else -1,
+                "team2_p2_id":  g.team2_player2_id if g.team2_player2_id is not None else -1,
+                "guest2_name": g.guest2_name,
+                "guest3_name": g.guest3_name,
+                "guest4_name": g.guest4_name,
                 "points1":      g.current_points_team1,
                 "points2":      g.current_points_team2,
                 "winner":       g.winner,
                 "rounds":       rounds_by_game.get(g.id, []),
             })
+            #print(f"IDS: 1:{g.team1_player1_id} 2: {g.team1_player2_id} 3: {g.team2_player1_id} 4: {g.guest4_name}")
 
         remaining = 0
         expires_at_str = session.get("expires_at")

@@ -106,7 +106,7 @@
 
         <td class="td-team">
           <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{{ g.team1_p1 }}</span>
-          <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{{ g.team1_p2 }}</span>
+          <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{% if g.team1_p2_id < 0 %}{{ g.guest2_name }}{% else %}{{ g.team1_p2 }}{% endif %}</span>
         </td>
 
         <td class="td-score">
@@ -116,8 +116,8 @@
         </td>
 
         <td class="td-team">
-          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{{ g.team2_p1 }}</span>
-          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{{ g.team2_p2 }}</span>
+          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p1_id < 0 %}{{ g.guest3_name }}{% else %}{{ g.team2_p1 }}{% endif %}</span>
+          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p2_id < 0 %}{{ g.guest4_name }}{% else %}{{ g.team2_p2 }}{% endif %}</span>
         </td>
 
         <td class="td-score">
@@ -227,6 +227,7 @@
                   {% set knows_outcome = has_place_data and place > 0 %}
 
                   {% set _ = players.append({
+                    'pid': pid,
                     'pname': pname,
                     'place': place,
                     'sort_key': place if place > 0 else 99,
@@ -236,6 +237,12 @@
                     'tichu': pid is not none and pid in tichu_ids,
                     'big_tichu': pid is not none and pid in big_tichu_ids,
                     'pingu': pid is not none and pid in pingu_ids,
+                    'guest_name': (
+                        g.guest2_name if pid == -2 else
+                        g.guest3_name if pid == -3 else
+                        g.guest4_name if pid == -4 else
+                        "Guest")
+
                   }) %}
                 {% endfor %}
                 {% set _ = all_teams_players.append(players) %}
@@ -306,7 +313,7 @@
                         <span class="round-player-place {% if r.double1 %}place-double-win{% endif %}">
                           {{ p.place if p.place > 0 else '–' }}{{ '.' if p.place > 0 }}
                         </span>
-                        <span class="round-player-name">{{ p.pname }}</span>
+                       <span class="round-player-name">{% if p.pid < 0%}{{p.guest_name}}{%else%}{{p.pname }}{%endif%}</span>
                         {% if p.tichu or p.big_tichu or p.pingu %}
                           <span class="round-player-badge {% if p.knows_outcome %}{{ 'badge-win' if p.is_first else 'badge-loss' }}{% else %}badge-neutral{% endif %}">
                             {% if p.knows_outcome %}
@@ -330,7 +337,7 @@
                         <span class="round-player-place {% if r.double2 %}place-double-win{% endif %}">
                           {{ p.place if p.place > 0 else '–' }}{{ '.' if p.place > 0 }}
                         </span>
-                        <span class="round-player-name">{{ p.pname }}</span>
+                        <span class="round-player-name">{% if p.pid < 0%}{{p.guest_name}}{%else%}{{p.pname }}{%endif%}</span>
                         {% if p.tichu or p.big_tichu or p.pingu %}
                           <span class="round-player-badge {% if p.knows_outcome %}{{ 'badge-win' if p.is_first else 'badge-loss' }}{% else %}badge-neutral{% endif %}">
                             {% if p.knows_outcome %}

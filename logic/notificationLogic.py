@@ -120,7 +120,7 @@ def send_push_notification(
 
     with httpx.Client(http2=True) as client:
         response = client.post(url, json=payload, headers=headers)
-        #_log_apns_debug(device_token, response)
+        _log_apns_debug(device_token, response)
         return response.status_code == 200
 
 
