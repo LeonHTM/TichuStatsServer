@@ -85,7 +85,7 @@ def edit_target_route():
 
 
 @game_bp.route("/finish_game", methods=["POST"])
-#@jwt_or_session_required
+@jwt_or_session_required
 def finish_game_route():
     from logic.gameLogic import Game
 
@@ -163,6 +163,8 @@ def delete_game(game_id):
 
     playerIds = [game.team1_player1_id, game.team1_player2_id, game.team2_player1_id,game.team2_player2_id]
 
+    db.session.delete(game)
+    db.session.commit()
 
     #Calculate the Stats for the Player in all possible timeframes
     for playerId in playerIds:
@@ -175,8 +177,7 @@ def delete_game(game_id):
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
-    db.session.delete(game)
-    db.session.commit()
+    
 
     socketio.emit("game_deleted", {"game_id": game_id})
 

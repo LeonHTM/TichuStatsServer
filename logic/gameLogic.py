@@ -137,6 +137,17 @@ def recalculate(game_id,tie=False):
                     game.current_points_team2 = game.current_points_team2 - round.round_points_team2 - round.tichu_points_team2
         
 
+    playerIds = [game.team1_player1_id, game.team1_player2_id, game.team2_player1_id, game.team2_player2_id] 
+  
+ 
+    #calculateStats for all TimeFrames
+    for playerId in playerIds:
+            calculateStats(playerId, "all_time")
+            calculateStats(playerId, "year")
+            calculateStats(playerId, "month")
+            calculateStats(playerId, "week")
+            calculateStats(playerId, "day")
+
     db.session.commit()
 
     socketio.emit("game_recalculated", {"game_id": game_id})
@@ -303,20 +314,6 @@ def calculate_elo(game_id, winner):
 
 
     game.calculated = True
-
-    # Only run calculateStats for real players
-    playerIds = [
-        p.id for p in [team1_player1, team1_player2, team2_player1, team2_player2]
-        if p.id > 0
-    ]
-
-    #calculateStats for all TimeFrames
-    for playerId in playerIds:
-        calculateStats(playerId, "all_time")
-        calculateStats(playerId, "year")
-        calculateStats(playerId, "month")
-        calculateStats(playerId, "week")
-        calculateStats(playerId, "day")
 
     #Commit and emit
     db.session.commit()

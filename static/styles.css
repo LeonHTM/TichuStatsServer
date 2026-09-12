@@ -913,6 +913,9 @@ main {
   background: #cc000025;
   border: 1px solid var(--#cc000025);
 }
+.delete-btn-guest{
+  display:none;
+}
 
 .row-actions {
   display: flex;

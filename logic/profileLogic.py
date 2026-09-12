@@ -174,6 +174,7 @@ def calculateStats(user_id, timeframe="all_time"):
     #User
     user = Profile.query.get(user_id)
     if not user:
+        print("Error found not user for CalculateStats")
         return
     uid = user_id
 
@@ -397,6 +398,7 @@ def calculateStats(user_id, timeframe="all_time"):
     stats.big_gambler       = big_gambler
     stats.pingu_gambler     = pingu_gambler
     stats.bomber            = bomber
+    stats.calculated_at     = datetime.utcnow()
 
     db.session.commit()
     #To measure how long calcuation took pt.2 

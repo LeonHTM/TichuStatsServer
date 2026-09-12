@@ -125,6 +125,7 @@ def get_profilesstats(profile_id):
     today = datetime.utcnow().date()
     existing = ProfileStats.query.filter_by(profile_id=profile_id, timeframe=timeframe).first()
 
+
     already_calculated_today = (
         existing is not None
         and existing.calculated_at is not None
@@ -132,9 +133,12 @@ def get_profilesstats(profile_id):
     )
 
     if not already_calculated_today:
+        print("need to calcalute dont have today")
         for tf in ("all_time", "year", "month", "week", "day"):
+            print("have to calcaulte for today lool")
             calculateStats(profile_id, timeframe=tf)
-
+    else:
+        print("dont need to calcaulte already have today")
     return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
 

@@ -31,6 +31,26 @@
     </div>
   </div>
 </nav>
+<!-- DELETE GAME CONFIRMATION MODAL -->
+<div class="modal-overlay" id="deleteGameOverlay" onclick="closeDeleteGameModal()"></div>
+<div class="modal" id="deleteGameModal">
+  <div class="modal-header">
+    <h2 class="modal-title">Delete Game</h2>
+    <button class="modal-close" onclick="closeDeleteGameModal()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <p style="margin: 0 0 8px; color: var(--ink-muted); font-size: 14px;">
+    Are you sure you want to delete game <strong id="deleteGameLabel"></strong>? This cannot be undone.
+  </p>
+  <div class="modal-error" id="deleteGameError"></div>
+  <div class="modal-actions">
+    <button class="btn-secondary" onclick="closeDeleteGameModal()">Cancel</button>
+    <button class="delete-btn" onclick="confirmDeleteGame()" id="deleteGameBtn">Delete</button>
+  </div>
+</div>
 
 <main>
   <h1 class="page-title">Games</h1>
@@ -100,7 +120,7 @@
 
         <td>
           <span class="badge {{ status }}">
-            {% if g.winner and g.winner != 3%}Team{{ g.winner }} won{%elif g.winner == 3%}Tie{% else %}Ongoing{% endif %}
+            {% if g.winner and g.winner != 3%}Team {{ g.winner }}{%elif g.winner == 3%}Tie{% else %}Ongoing{% endif %}
           </span>
         </td>
 
@@ -539,27 +559,53 @@
   setInterval(updateTimer, 1000);
 </script>
 <script>
-async function deleteGame(event, id) {
-  event.stopPropagation();
+  let pendingDeleteGameId = null;
 
-  if (!confirm(`Delete game ${id}?`)) return;
-
-  const res = await fetch(`/delete_game/${id}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    alert(err.error || "Failed to delete game");
-    return;
+  function deleteGame(event, id) {
+    event.stopPropagation();
+    pendingDeleteGameId = id;
+    document.getElementById('deleteGameLabel').textContent = `#${id}`;
+    document.getElementById('deleteGameError').textContent = '';
+    document.getElementById('deleteGameOverlay').classList.add('visible');
+    document.getElementById('deleteGameModal').classList.add('visible');
   }
 
-  document.querySelector(`tr.game-row[data-id="${id}"]`)?.remove();
-  document.querySelector(`#expand-${id}`)?.remove();
-}
+  function closeDeleteGameModal() {
+    document.getElementById('deleteGameOverlay').classList.remove('visible');
+    document.getElementById('deleteGameModal').classList.remove('visible');
+    pendingDeleteGameId = null;
+  }
+
+  async function confirmDeleteGame() {
+    const btn = document.getElementById('deleteGameBtn');
+    btn.textContent = 'Deleting…';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`/delete_game/${pendingDeleteGameId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        document.getElementById('deleteGameError').textContent = err.error || "Failed to delete game";
+        btn.textContent = 'Delete';
+        btn.disabled = false;
+        return;
+      }
+
+      document.querySelector(`tr.game-row[data-id="${pendingDeleteGameId}"]`)?.remove();
+      document.querySelector(`#expand-${pendingDeleteGameId}`)?.remove();
+      closeDeleteGameModal();
+
+    } catch (e) {
+      document.getElementById('deleteGameError').textContent = 'Network error.';
+    }
+
+    btn.textContent = 'Delete';
+    btn.disabled = false;
+  }
 </script>
 <script>
 async function recalculateGame(event, id) {

@@ -252,6 +252,11 @@
       document.getElementById('modalImageInput').value = '';
       document.getElementById('modalDeleteBtn').dataset.name = name;
 
+      const deleteBtn = document.getElementById('modalDeleteBtn');
+      deleteBtn.dataset.name = name;
+      deleteBtn.classList.toggle('delete-btn-guest', parseInt(profileId) < 0);
+      deleteBtn.classList.toggle('delete-btn', parseInt(profileId) >= 0);
+
       const checkbox = document.getElementById('modalIsAdmin');
       const track = document.getElementById('toggleTrack');
       const label = document.getElementById('adminToggleLabel');
