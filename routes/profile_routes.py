@@ -27,8 +27,7 @@ def get_profiles():
         profiles = Profile.query.all()
         for profile in profiles:
             profile.all_time_stats = ProfileStats.query.filter_by(
-                profile_id=profile.id, timeframe="all_time"
-            ).first()
+                            profile_id=profile.id, timeframe="all_time").order_by(ProfileStats.id.desc()).first()
         return render_template("dashboard-profiles.html", profiles=profiles, session_seconds=0)
     profiles = Profile.query.all()
     return jsonify([p.to_dict() for p in profiles])
@@ -111,6 +110,34 @@ def update_profile_settings(profile_id):
 
 
 
+@profile_bp.route("/profilestats/history", methods=["POST"])
+@jwt_or_session_required
+def profilestatshistory():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    if "profile_id" not in data:
+        return jsonify({"error": "profile_id is required"}), 400
+
+    profile_id = data["profile_id"]
+    stat = data.get("stat")  # currently unused
+
+    stats_day_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="day").order_by(ProfileStats.id.asc()).all()
+    stats_week_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="week").order_by(ProfileStats.id.asc()).all()
+    stats_month_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="month").order_by(ProfileStats.id.asc()).all()
+    stats_year_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="year").order_by(ProfileStats.id.asc()).all()
+    stats_all_time_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="all_time").order_by(ProfileStats.id.asc()).all()
+
+    result = {
+        "day": [s.to_dict() for s in stats_day_history],
+        "week": [s.to_dict() for s in stats_week_history],
+        "month": [s.to_dict() for s in stats_month_history],
+        "year": [s.to_dict() for s in stats_year_history],
+        "all_time": [s.to_dict() for s in stats_all_time_history],
+    }
+    return jsonify(result)
+
 from datetime import datetime
 
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
@@ -123,7 +150,8 @@ def get_profilesstats(profile_id):
     timeframe = request.args.get("timeframe", "all_time")
 
     today = datetime.utcnow().date()
-    existing = ProfileStats.query.filter_by(profile_id=profile_id, timeframe=timeframe).first()
+    existing = ProfileStats.query.filter_by(
+                                profile_id=profile.id, timeframe=timeframe).order_by(ProfileStats.id.desc()).first()
 
 
     already_calculated_today = (

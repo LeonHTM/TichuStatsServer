@@ -75,8 +75,7 @@ def create_app():
         profiles = Profile.query.all()
         for profile in profiles:
             profile.all_time_stats = ProfileStats.query.filter_by(
-                profile_id=profile.id, timeframe="all_time"
-            ).first()
+                            profile_id=profile.id, timeframe="all_time").order_by(ProfileStats.id.desc()).first()
 
         return render_template(
             "dashboard-profiles.html",
@@ -107,8 +106,7 @@ def create_app():
         profiles = Profile.query.all()
         for profile in profiles:
             profile.all_time_stats = ProfileStats.query.filter_by(
-                profile_id=profile.id, timeframe="all_time"
-            ).first()
+                            profile_id=profile.id, timeframe="all_time").order_by(ProfileStats.id.desc()).first()
 
         remaining = 0
         expires_at_str = session.get("expires_at")
@@ -206,8 +204,7 @@ def create_app():
         profiles = Profile.query.all()
         for profile in profiles:
             profile.all_time_stats = ProfileStats.query.filter_by(
-                profile_id=profile.id, timeframe="all_time"
-            ).first()
+                            profile_id=profile.id, timeframe="all_time").order_by(ProfileStats.id.desc()).first()
 
         remaining = 0
         expires_at_str = session.get("expires_at")

@@ -46,7 +46,9 @@ class Profile(db.Model):
         }
 
     def to_dict_stats(self, timeframe="all_time"):
-        stats = ProfileStats.query.filter_by(profile_id=self.id, timeframe=timeframe).first()
+        stats = ProfileStats.query.filter_by(
+                profile_id=self.id, timeframe=timeframe
+            ).first()
         base = {
             "id": self.id,
             "name": self.name,
@@ -104,10 +106,6 @@ class ProfileStats(db.Model):
     bomber = db.Column(db.Float, default=0)
 
     profile = db.relationship("Profile", back_populates="stats")
-
-    __table_args__ = (
-        db.UniqueConstraint("profile_id", "timeframe", name="unique_profile_timeframe"),
-    )
 
     def to_dict(self):
         return {
@@ -381,10 +379,8 @@ def calculateStats(user_id, timeframe="all_time"):
     average_placement = round(total_placement / placement_count, round_to) if placement_count else 0.0
 
     #Save to database
-    stats = ProfileStats.query.filter_by(profile_id=uid, timeframe=timeframe).first()
-    if not stats:
-        stats = ProfileStats(profile_id=uid, timeframe=timeframe)
-        db.session.add(stats)
+    stats = ProfileStats(profile_id=uid, timeframe=timeframe)
+    db.session.add(stats)
 
     stats.winner_percentage = winner_percentage
     stats.average_placement = average_placement
