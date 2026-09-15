@@ -47,8 +47,8 @@ class Profile(db.Model):
 
     def to_dict_stats(self, timeframe="all_time"):
         stats = ProfileStats.query.filter_by(
-                profile_id=self.id, timeframe=timeframe
-            ).first()
+            profile_id=self.id, timeframe=timeframe
+            ).order_by(ProfileStats.id.desc()).first()
         base = {
             "id": self.id,
             "name": self.name,
@@ -106,6 +106,7 @@ class ProfileStats(db.Model):
     bomber = db.Column(db.Float, default=0)
 
     profile = db.relationship("Profile", back_populates="stats")
+
 
     def to_dict(self):
         return {
