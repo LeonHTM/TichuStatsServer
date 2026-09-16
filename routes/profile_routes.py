@@ -159,17 +159,18 @@ def get_profilesstats(profile_id):
     now = datetime.utcnow()
     existing = ProfileStats.query.filter_by(
                                 profile_id=profile.id, timeframe=timeframe).order_by(ProfileStats.id.desc()).first()
-
+    #Limit recalcalution Window to 5 Min at most or when a round gets recalculated
     already_calculated_recently = (
         existing is not None
         and existing.calculated_at is not None
         and (now - existing.calculated_at) < timedelta(minutes=5)
     )
+    #already_calculated_recently = False
 
     if not already_calculated_recently:
         print("c")
         for tf in ("all_time", "year", "month", "week", "day"):
-            print(f"Recalculating Stats: {now}")
+            print(f"Recalculating Stats: {tf}")
             calculateStats(profile_id, timeframe=tf, timezone_str=timezone_str)
     else:
         print("dont need to calcaulte already have recent")

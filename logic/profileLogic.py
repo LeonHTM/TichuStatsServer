@@ -188,6 +188,7 @@ def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
         now_local = now_utc.astimezone(user_tz)
         midnight_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         timeframe_delta = midnight_local.astimezone(ZoneInfo("UTC"))
+        #print(f"time: delta {timeframe_delta}")
     elif timeframe == "week":
         timeframe_delta = now_utc - timedelta(days=7)
     elif timeframe == "month":
@@ -198,7 +199,7 @@ def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
         timeframe_delta = None
 
 
-    print(f"CalculateStats: Delta: {timeframe}:{timeframe_delta}")
+    #print(f"CalculateStats: Delta: {timeframe}:{timeframe_delta}")
 
     def get_team(game):
         if uid in (game.team1_player1_id, game.team1_player2_id):

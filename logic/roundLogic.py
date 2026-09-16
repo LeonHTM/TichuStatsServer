@@ -1,6 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from extensions import db
-
+from datetime import datetime
 
 class Round(db.Model):
     __tablename__ = "rounds"
@@ -29,7 +29,7 @@ class Round(db.Model):
     double_win_team1 = db.Column(db.Boolean, default=False)
     double_win_team2 = db.Column(db.Boolean, default=False)
 
-    date = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     bool_win_round = db.Column(db.Boolean, nullable=False, default=False)
     announced_tichu = db.Column(db.JSON, default=list)

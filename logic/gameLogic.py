@@ -160,7 +160,7 @@ def recalculate(game_id,tie=False):
         "winner": game.winner,
     }), 200
 
-#Finish Game: Elo gets calcaluted for all Players if no Guests are present
+#Finish Game: Elo gets calculated for all Players if no Guests are present
 def finish_game(game_id,tie=False):
     game = Game.query.get(game_id)
 
