@@ -8,7 +8,7 @@ from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
 import os
 from routes.auth_routes import jwt_or_session_required, app_token_required
 from logic.gameLogic import EloHistory, handle_user_deleted
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 profile_bp = Blueprint("profile", __name__)
@@ -139,34 +139,40 @@ def profilestatshistory():
     return jsonify(result)
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
-@jwt_or_session_required
+#@jwt_or_session_required
 def get_profilesstats(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
     timeframe = request.args.get("timeframe", "all_time")
+    timezone_str = request.args.get("timezone", "UTC")
 
-    today = datetime.utcnow().date()
+    try:
+        ZoneInfo(timezone_str)  # validate it's a real IANA name
+    except Exception:
+        return jsonify({"error": f"Invalid timezone: {timezone_str}"}), 400
+
+    now = datetime.utcnow()
     existing = ProfileStats.query.filter_by(
                                 profile_id=profile.id, timeframe=timeframe).order_by(ProfileStats.id.desc()).first()
 
-
-    already_calculated_today = (
+    already_calculated_recently = (
         existing is not None
         and existing.calculated_at is not None
-        and existing.calculated_at.date() == today
+        and (now - existing.calculated_at) < timedelta(minutes=5)
     )
 
-    if not already_calculated_today:
-        print("need to calcalute dont have today")
+    if not already_calculated_recently:
+        print("c")
         for tf in ("all_time", "year", "month", "week", "day"):
-            print("have to calcaulte for today lool")
-            calculateStats(profile_id, timeframe=tf)
+            print(f"Recalculating Stats: {now}")
+            calculateStats(profile_id, timeframe=tf, timezone_str=timezone_str)
     else:
-        print("dont need to calcaulte already have today")
+        print("dont need to calcaulte already have recent")
     return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
 

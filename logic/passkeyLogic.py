@@ -1,4 +1,5 @@
 from extensions import db
+from datetime import datetime
 
 
 class Credential(db.Model):
@@ -13,7 +14,7 @@ class Credential(db.Model):
     transports = db.Column(db.String(255), nullable=True)
     nickname = db.Column(db.String(100), nullable=True)
 
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_used_at = db.Column(db.DateTime, nullable=True)
 
     profile = db.relationship(
@@ -42,4 +43,4 @@ class WebAuthnChallenge(db.Model):
     challenge = db.Column(db.LargeBinary(255), nullable=False)
     ceremony_type = db.Column(db.Enum("registration", "authentication"), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

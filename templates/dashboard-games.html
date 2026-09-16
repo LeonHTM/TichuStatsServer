@@ -148,23 +148,23 @@
 
         <td class="td-date">
           {% if g.date %}
-            <span class="date-main">{{ g.date.strftime('%d %b %Y') }}</span>
-            <span class="date-time">{{ g.date.strftime('%H:%M') }}</span>
+            <span class="date-main" data-local-date="{{ g.date.isoformat() }}"></span>
+            <span class="date-time" data-local-time="{{ g.date.isoformat() }}"></span>
           {% else %}—{% endif %}
-        </td>
+        </td
 
         <td class="td-target">{{ g.target }}</td>
 
         <td>
-  <div class="row-actions">
-    <button class="recalc-btn" onclick="recalculateGame(event, {{ g.id }})">
-      Recalculate
-    </button>
-    <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
-      Delete
-    </button>
-  </div>
-</td>
+          <div class="row-actions">
+            <button class="recalc-btn" onclick="recalculateGame(event, {{ g.id }})">
+              Recalculate
+            </button>
+            <button class="delete-btn" onclick="deleteGame(event, {{ g.id }})">
+              Delete
+            </button>
+          </div>
+        </td>
 
       </tr>
 
@@ -192,7 +192,7 @@
               <div class="detail-item">
                 <span class="detail-label">Started</span>
                 <span class="detail-value">
-                  {% if g.date %}{{ g.date.strftime('%d %b %Y, %H:%M') }}{% else %}—{% endif %}
+                  {% if g.date %}<span data-local-datetime="{{ g.date.isoformat() }}"></span>{% else %}—{% endif %}
                 </span>
               </div>
               <div class="detail-item">
@@ -648,6 +648,33 @@ async function recalculateGame(event, id) {
     btn.textContent = "Recalculate";
   }
 }
+</script>
+<script>
+  function formatLocalDate(iso) {
+    const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z");
+    return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  }
+  function formatLocalTime(iso) {
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z");
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  }  
+  function formatLocalDateTime(iso) {
+    return `${formatLocalDate(iso)}, ${formatLocalTime(iso)}`;
+  }
+
+  function applyLocalDates() {
+    document.querySelectorAll('[data-local-date]').forEach(el => {
+      el.textContent = formatLocalDate(el.dataset.localDate);
+    });
+    document.querySelectorAll('[data-local-time]').forEach(el => {
+      el.textContent = formatLocalTime(el.dataset.localTime);
+    });
+    document.querySelectorAll('[data-local-datetime]').forEach(el => {
+      el.textContent = formatLocalDateTime(el.dataset.localDatetime);
+    });
+  }
+
+  applyLocalDates();
 </script>
 
 </body>

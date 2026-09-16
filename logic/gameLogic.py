@@ -3,12 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from extensions import db, socketio
 from logic.roundLogic import Round
 from logic.profileLogic import Profile, calculateStats
+from datetime import datetime
 
 class Game(db.Model):
     __tablename__ = "games"
 
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.DateTime, server_default=db.func.now())
+    date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     target = db.Column(db.Integer, default=1000)
     allow_pingus = db.Column(db.Boolean, default=True)
@@ -82,7 +83,7 @@ class EloHistory(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
     game_id    = db.Column(db.Integer, db.ForeignKey("games.id", ondelete="CASCADE"), nullable=True)
     elo_change = db.Column(db.Float, nullable=False)
-    changed_at = db.Column(db.DateTime, server_default=db.func.now())
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 #Recalculate the current Points for each Team in a Tichu Game
 def recalculate(game_id,tie=False):

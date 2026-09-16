@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from extensions import db, socketio
 from logic.roundLogic import Round
+from datetime import datetime
 
 
 class Profile(db.Model):
@@ -23,8 +24,7 @@ class Profile(db.Model):
 
     device_tokens = db.relationship("UserDeviceToken", back_populates="profile", cascade="all, delete-orphan")
     stats = db.relationship("ProfileStats", back_populates="profile", cascade="all, delete-orphan")
-
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
@@ -90,7 +90,7 @@ class ProfileStats(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     profile_id = db.Column(db.Integer, db.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
     timeframe = db.Column(db.Enum("all_time", "year", "month", "week", "day"), nullable=False)
-    calculated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    calculated_at = db.Column(db.DateTime,default=datetime.utcnow,onupdate=datetime.utcnow,nullable=False)
 
     winner_percentage = db.Column(db.Float, default=0)
     average_placement = db.Column(db.Float, default=0)
@@ -111,7 +111,7 @@ class ProfileStats(db.Model):
     def to_dict(self):
         return {
             "timeframe": self.timeframe,
-            "calculated_at": self.calculated_at.isoformat() if self.calculated_at else None,
+            "calculated_at": self.calculated_at.isoformat(),
             "winner_percentage": self.winner_percentage,
             "average_placement" : self.average_placement,
             "tichu_master": self.tichu_master,
@@ -132,7 +132,9 @@ class ProfileFriend(db.Model):
 
     profile_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
     friend_id = db.Column(db.Integer, db.ForeignKey("profiles.id"), primary_key=True)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,nullable=False)
+
+
 
 
 class FriendRequest(db.Model):
@@ -142,7 +144,7 @@ class FriendRequest(db.Model):
     sender_id = db.Column(db.Integer,db.ForeignKey("profiles.id", ondelete="CASCADE"),nullable=False)
     receiver_id = db.Column(db.Integer,db.ForeignKey("profiles.id", ondelete="CASCADE"),nullable=False)
     status = db.Column(db.Enum("pending", "accepted", "rejected"), default="pending")
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,nullable=False)
 
 
 class UserDeviceToken(db.Model):
@@ -151,8 +153,8 @@ class UserDeviceToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
     device_token = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     profile = db.relationship("Profile", back_populates="device_tokens")
 
@@ -161,34 +163,42 @@ from datetime import datetime, timedelta
 import time
 
 #Calculate Stats for user and given Timeframe
-def calculateStats(user_id, timeframe="all_time"):
-    #KEEP THIS IMPORT INSIDE OR IT BREAKS IDK Y
+def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
     from logic.gameLogic import Game
-    #How exact the calcalutions should be
-    round_to = 4
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
 
-    #To test how long calclaution took
+    round_to = 4
     start = time.time()
 
-    #User
     user = Profile.query.get(user_id)
     if not user:
         print("Error found not user for CalculateStats")
         return
     uid = user_id
 
-    #TimeFrames
-    now = datetime.utcnow()
+    now_utc = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+
+    try:
+        user_tz = ZoneInfo(timezone_str)
+    except Exception:
+        user_tz = ZoneInfo("UTC")
+
     if timeframe == "day":
-        timeframe_delta = now - timedelta(days=1)
+        now_local = now_utc.astimezone(user_tz)
+        midnight_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        timeframe_delta = midnight_local.astimezone(ZoneInfo("UTC"))
     elif timeframe == "week":
-        timeframe_delta = now - timedelta(weeks=1)
+        timeframe_delta = now_utc - timedelta(days=7)
     elif timeframe == "month":
-        timeframe_delta = now - timedelta(days=30)
+        timeframe_delta = now_utc - timedelta(days=30)
     elif timeframe == "year":
-        timeframe_delta = now - timedelta(days=365)
-    else:
-        timeframe_delta = None  # all_time
+        timeframe_delta = now_utc - timedelta(days=365)
+    elif timeframe == "all_time":
+        timeframe_delta = None
+
+
+    print(f"CalculateStats: Delta: {timeframe}:{timeframe_delta}")
 
     def get_team(game):
         if uid in (game.team1_player1_id, game.team1_player2_id):
