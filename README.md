@@ -3,9 +3,9 @@
 
 ## **Features**
 - Accesses MySQL Database to store data in Tables and makes it accessible via routes to clients
-- Calculates Games, Statistics across Timeframes and Changes in Elo
+- Keeps History of Games, Statistics and Elo Rating across 5 different Timeframes and delivers them based on users timezone
 - Stores Profile Images
-- Hosts Webpages for Admin Access on the Web, which can interact with some of the Pages designed for the Client
+- Hosts Webpages for Admin Access on the Web, which can interact with some of the routes designed for the Client
 - Handles Notifications
 - Handles Passkeys
 
@@ -17,8 +17,8 @@ Split into Logic, Routes, Static, Templates and Uploads.
 - Templates: HTML Pages
 - Uploads: Stores the Profile Images of Users
 
-Everything runs in tichuServer.py which also hosts some of the most important routes.
+Everything runs in tichuServer.py which also hosts the most important routes.
 
-If you want to know about the Config.py [contact me](mailto:leon@tichu.dev).
+If you want to know more about the Config.py [contact me](mailto:leon@tichu.dev).
 
 **Hint:** The Help of AI was used on this Project
