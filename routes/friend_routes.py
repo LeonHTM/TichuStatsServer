@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity,jwt_required
 from extensions import db, socketio
 from logic.profileLogic import Profile, ProfileFriend, FriendRequest
 from logic.notificationLogic import notify_user, notify_accepted
@@ -10,6 +10,9 @@ friend_bp = Blueprint("friend", __name__)
 @friend_bp.route("/friends/<int:profile_id>", methods=["GET"])
 @jwt_required()
 def get_friends(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     friendships = ProfileFriend.query.filter(
         (ProfileFriend.profile_id == profile_id) |
         (ProfileFriend.friend_id == profile_id)
@@ -25,9 +28,13 @@ def get_friends(profile_id):
             result.append(data)
     return jsonify(result)
 
-@friend_bp.route("/add_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["POST"])
+#This is not in use. If active any user could just add friendship with any other account without requests
+"""@friend_bp.route("/add_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["POST"])
 @jwt_required()
 def add_friend(profile_id, friend_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     if profile_id == friend_id:
         return jsonify({"error": "A profile cannot be friends with itself"}), 400
 
@@ -58,11 +65,14 @@ def add_friend(profile_id, friend_id):
         loc_args=[profile.name],
         image_url=image_url
     )
-    return jsonify({"message": "Friendship created"}), 201
+    return jsonify({"message": "Friendship created"}), 201"""
 
 @friend_bp.route("/delete_friendship/<int:profile_id>/friends/<int:friend_id>", methods=["DELETE"])
 @jwt_required()
 def remove_friend(profile_id, friend_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     friendship = ProfileFriend.query.filter(
         ((ProfileFriend.profile_id == profile_id) & (ProfileFriend.friend_id == friend_id)) |
         ((ProfileFriend.profile_id == friend_id) & (ProfileFriend.friend_id == profile_id))
@@ -79,6 +89,9 @@ def remove_friend(profile_id, friend_id):
 @friend_bp.route("/add_request/<int:sender_id>/request/<int:receiver_id>", methods=["POST"])
 @jwt_required()
 def send_friend_request(sender_id, receiver_id):
+    current_id = int(get_jwt_identity())
+    if current_id != sender_id:
+        return jsonify({"error": "forbidden"}), 403
     if sender_id == receiver_id:
         return jsonify({"error": "Cannot request yourself"}), 400
 
@@ -144,6 +157,9 @@ def send_friend_request(sender_id, receiver_id):
 @friend_bp.route("/manage_requests/<int:receiver_id>/from/<int:sender_id>", methods=["PATCH"])
 @jwt_required()
 def respond_to_request(receiver_id, sender_id):
+    current_id = int(get_jwt_identity())
+    if current_id != receiver_id:
+        return jsonify({"error": "forbidden"}), 403
     data = request.get_json()
     action = data.get("action")
     if action not in ["accepted", "rejected"]:
@@ -190,11 +206,8 @@ def respond_to_request(receiver_id, sender_id):
 @friend_bp.route("/requests/<int:profile_id>/", methods=["GET"])
 @jwt_required()
 def get_requests(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     reqs = FriendRequest.query.filter_by(receiver_id=profile_id, status="pending").all()
     return jsonify([{"id": r.id, "sender_id": r.sender_id, "created_at": r.created_at.isoformat()} for r in reqs]), 200
-
-@friend_bp.route("/sent_requests/<int:profile_id>/", methods=["GET"])
-@jwt_required()
-def get_sent_requests(profile_id):
-    reqs = FriendRequest.query.filter_by(sender_id=profile_id, status="pending").all()
-    return jsonify([{"id": r.id, "receiver_id": r.receiver_id} for r in reqs]), 200

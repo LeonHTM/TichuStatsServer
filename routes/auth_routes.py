@@ -1,26 +1,11 @@
 from flask import Blueprint, jsonify, request, session, redirect, render_template
-from flask_jwt_extended import create_access_token, verify_jwt_in_request
+from flask_jwt_extended import get_jwt_identity, decode_token,create_access_token, verify_jwt_in_request
 from logic.profileLogic import Profile
 from logic.authLogic import generate_and_send_code, verify_code
 from functools import wraps
 from config import APP_SECRET_TOKEN
 
 auth_bp = Blueprint("auth", __name__)
-
-@auth_bp.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    profile_id = data.get("id")
-
-    if not profile_id:
-        return jsonify({"error": "ID required"}), 400
-
-    profile = Profile.query.get(profile_id)
-    if not profile:
-        return jsonify({"error": "Profile not found"}), 404
-
-    token = create_access_token(identity=str(profile.id))
-    return jsonify({"token": token, "id": profile.id}), 200
 
 #When first login in the App does not have an authToken yet, it uses appToken which is a Sectret String
 def app_token_required(f):
@@ -54,6 +39,20 @@ def jwt_or_session_required(fn):
         return jsonify({"error": "Unauthorized"}), 401  
 
     return wrapper
+
+def current_identity():
+    try:
+        return int(get_jwt_identity())
+    except Exception:
+        pass
+    token = session.get("jwt")
+    if token:
+        try:
+            decoded = decode_token(token)
+            return int(decoded["sub"])
+        except Exception:
+            return None
+    return None
 
 
 @auth_bp.route("/login/request-code/<email>", methods=["POST"])

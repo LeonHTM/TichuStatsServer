@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, socketio
 from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
 import os
-from routes.auth_routes import jwt_or_session_required, app_token_required
+from routes.auth_routes import jwt_or_session_required, app_token_required, current_identity
 from logic.gameLogic import EloHistory, handle_user_deleted
 from datetime import datetime, timedelta
 
@@ -15,7 +15,6 @@ profile_bp = Blueprint("profile", __name__)
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 
 
@@ -53,6 +52,9 @@ def is_in_open_game(profile_id):
 @profile_bp.route("/profile/<int:profile_id>/settings", methods=["GET"])
 @jwt_or_session_required
 def get_profile_settings(profile_id):
+    current_id = current_identity()
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
     if not settings:
         return jsonify({
@@ -70,6 +72,9 @@ def get_profile_settings(profile_id):
 @profile_bp.route("/profile/<int:profile_id>/settings", methods=["PATCH"])
 @jwt_or_session_required
 def update_profile_settings(profile_id):
+    current_id = current_identity()
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -113,6 +118,7 @@ def update_profile_settings(profile_id):
 @profile_bp.route("/profilestats/history", methods=["POST"])
 @jwt_or_session_required
 def profilestatshistory():
+    current_id = current_identity()
     data = request.get_json()
 
     if not data:
@@ -121,6 +127,10 @@ def profilestatshistory():
         return jsonify({"error": "profile_id is required"}), 400
 
     profile_id = data["profile_id"]
+
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
+
     stat = data.get("stat")  # currently unused
 
     stats_day_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="day").order_by(ProfileStats.id.asc()).all()
@@ -142,7 +152,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
-#@jwt_or_session_required
+@jwt_or_session_required
 def get_profilesstats(profile_id):
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -168,7 +178,6 @@ def get_profilesstats(profile_id):
     #already_calculated_recently = False
 
     if not already_calculated_recently:
-        print("c")
         for tf in ("all_time", "year", "month", "week", "day"):
             print(f"Recalculating Stats: {tf}")
             calculateStats(profile_id, timeframe=tf, timezone_str=timezone_str)
@@ -180,6 +189,9 @@ def get_profilesstats(profile_id):
 @profile_bp.route("/profile/<int:profile_id>/is_admin", methods=["GET"])
 @jwt_or_session_required
 def is_admin(profile_id):
+    current_id = current_identity()
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -200,9 +212,7 @@ def create_profile():
 
     existing = Profile.query.filter_by(email=data["email"]).first()
     if existing:
-        from flask_jwt_extended import create_access_token
-        token = create_access_token(identity=str(existing.id))
-        return jsonify({"id": existing.id, "token": token}), 200
+        return jsonify({"error": "email_in_use"}), 409
 
     new_profile = Profile(email=data["email"], name=data.get("name"))
     db.session.add(new_profile)
@@ -267,6 +277,9 @@ def dashboard_update_profile(profile_id):
 @profile_bp.route("/delete_profile/<int:profile_id>", methods=["DELETE"])
 @jwt_or_session_required
 def delete_profile(profile_id):
+    current_id = current_identity()
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     error, status = handle_user_deleted(profile_id)
     if status != 200:
         return jsonify(error), status
@@ -291,6 +304,9 @@ def check_username(username):
 @profile_bp.route("/update_username/<int:profile_id>", methods=["PATCH"])
 @jwt_required()
 def update_username(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:  
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -316,6 +332,9 @@ def check_email(email):
 @profile_bp.route("/add_image/<int:profile_id>/", methods=["POST"])
 @jwt_required()
 def upload_profile_image(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:  
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -346,6 +365,9 @@ def serve_image(filename):
 @profile_bp.route("/logout/<int:profile_id>", methods=["POST"])
 @jwt_required()
 def logout(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:  
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         print("profile not found")
@@ -368,6 +390,9 @@ def logout(profile_id):
 @profile_bp.route("/register_device/<int:profile_id>", methods=["POST"])
 @jwt_required()
 def register_device(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:  
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -389,7 +414,8 @@ def register_device(profile_id):
 
     return jsonify({"success": True}), 200
 
-@profile_bp.route("/send_notification/<int:profile_id>", methods=["POST"])
+#Testing Purposes only should not be made public or otherwise users can send notifaciotn to any other user
+"""@profile_bp.route("/send_notification/<int:profile_id>", methods=["POST"])
 @jwt_required()
 def send_notification(profile_id):
     profile = Profile.query.get(profile_id)
@@ -408,12 +434,15 @@ def send_notification(profile_id):
         title_loc_args=data.get("title_loc_args", []),
         loc_args=data.get("loc_args", [])
     )
-    return jsonify({"success": True}), 200
+    return jsonify({"success": True}), 200"""
 
 
 @profile_bp.route("/elo_history/<int:profile_id>", methods=["GET"])
 @jwt_or_session_required
 def get_elo_history(profile_id):
+    current_id = current_identity()
+    if current_id is None or current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
     from logic.gameLogic import EloHistory
 
     history = (

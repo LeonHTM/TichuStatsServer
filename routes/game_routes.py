@@ -1,12 +1,20 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, socketio
 from logic.profileLogic import Profile, calculateStats
 from logic.gameLogic import Game, recalculate, EloHistory, finish_game
 from logic.roundLogic import Round
-from routes.auth_routes import jwt_or_session_required
+from routes.auth_routes import jwt_or_session_required, current_identity
+from sqlalchemy import or_
 
 game_bp = Blueprint("game", __name__)
+
+def is_game_participant(game, profile_id):
+    return profile_id in {
+        game.team1_player1_id, game.team1_player2_id,
+        game.team2_player1_id, game.team2_player2_id,
+    }
+
 
 @game_bp.route("/add_game", methods=["POST"])
 @jwt_required()
@@ -23,7 +31,11 @@ def add_game():
         data.get("team2_player2_id"),
     ]
 
+    current_id = int(get_jwt_identity())
     real_ids = [pid for pid in player_ids if pid is not None and pid > 0]
+    if current_id not in real_ids:
+        return jsonify({"error": "forbidden"}), 403
+
     if real_ids:
         conflict = Game.query.filter(
             Game.winner == None,
@@ -57,63 +69,65 @@ def add_game():
     return jsonify(game.to_dict()), 201
 
 
-@game_bp.route("/game/edit_target",methods=["POST"])
+@game_bp.route("/game/edit_target", methods=["POST"])
 @jwt_or_session_required
 def edit_target_route():
-    from logic.gameLogic import Game
     data = request.get_json()
     if not data or not data.get("game_id"):
-            return jsonify({"error": "game_id is required"}), 400
+        return jsonify({"error": "game_id is required"}), 400
 
     game_id = data["game_id"]
     updated_target = data["target"]
-    
 
     game = Game.query.get(game_id)
-
     if not game:
-            print("Game not found")
-            return jsonify({"error": "Game not found"}), 404
-    game.target = updated_target
+        print("Game not found")
+        return jsonify({"error": "Game not found"}), 404
 
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
+
+    game.target = updated_target
     recalculate(game_id)
 
     db.session.commit()
-    socketio.emit("game_target_updated", {"game_id": game_id,"target":updated_target})
+    socketio.emit("game_target_updated", {"game_id": game_id, "target": updated_target})
     return jsonify({"success": True}), 200
-
 
 
 @game_bp.route("/finish_game", methods=["POST"])
 @jwt_or_session_required
 def finish_game_route():
-    from logic.gameLogic import Game
-
-    print("FINISH GAME")
 
     data = request.get_json()
-    if not data or not data.get("game_id"):
-                return jsonify({"error": "game_id is required"}), 400
+    if not data or not data.get("game_id") or "tie" not in data:
+        return jsonify({"error": "game_id is required"}), 400
 
     game_id = data["game_id"]
     tie = data["tie"]
 
     print(f"FINSIH GAME: game_ID: {game_id} und {tie}")
-    
+
     game = Game.query.get(game_id)
     if not game:
         print("Game not found")
         return jsonify({"error": "Game not found"}), 404
-    
+
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
+
     if game.calculated == True:
         print("Game already Calculated")
         print(f"{game.calculated}")
         return jsonify({"error": "Game already finished"}), 400
 
-    recalculate(game_id,tie)
-    finish_game(game_id,tie)
+    recalculate(game_id, tie)
+    finish_game(game_id, tie)
     socketio.emit("game_finished", {"game_id": game_id})
     return jsonify({"success": True}), 200
+
 
 @game_bp.route("/game/edit_player/<int:game_id>", methods=["PATCH"])
 @jwt_required()
@@ -122,6 +136,10 @@ def game_edit_player(game_id):
 
     if not game:
         return jsonify({"error": "Game not found"}), 404
+
+    current_id = int(get_jwt_identity())
+    if not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
     if game.current_points_team1 != 0 or game.current_points_team2 != 0:
         return jsonify({"error": "Players can only be edited before the game has started (no points scored yet)"}), 409
@@ -155,29 +173,31 @@ def game_edit_player(game_id):
 
     return jsonify(game.to_dict()), 200
 
+
 @game_bp.route("/delete_game/<int:game_id>", methods=["DELETE"])
 @jwt_or_session_required
 def delete_game(game_id):
     game = Game.query.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
 
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
-    playerIds = [game.team1_player1_id, game.team1_player2_id, game.team2_player1_id,game.team2_player2_id]
+    player_ids = [game.team1_player1_id, game.team1_player2_id,
+                  game.team2_player1_id, game.team2_player2_id]
 
     db.session.delete(game)
     db.session.commit()
 
-    #Calculate the Stats for the Player in all possible timeframes
-    for playerId in playerIds:
-        calculateStats(playerId,"all_time")
-        calculateStats(playerId,"year")
-        calculateStats(playerId,"month")
-        calculateStats(playerId,"week")
-        calculateStats(playerId,"day")
-
-    if not game:
-        return jsonify({"error": "Game not found"}), 404
-
-    
+    # Calculate the Stats for the Player in all possible timeframes
+    for player_id in player_ids:
+        calculateStats(player_id, "all_time")
+        calculateStats(player_id, "year")
+        calculateStats(player_id, "month")
+        calculateStats(player_id, "week")
+        calculateStats(player_id, "day")
 
     socketio.emit("game_deleted", {"game_id": game_id})
 
@@ -192,6 +212,10 @@ def get_game_rounds(game_id):
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
+
     rounds = (
         Round.query
         .filter_by(game_id=game_id)
@@ -205,15 +229,15 @@ def get_game_rounds(game_id):
     }), 200
 
 
-from sqlalchemy import or_
-
 @game_bp.route("/profile/<int:profile_id>/games", methods=["GET"])
 @jwt_required()
 def get_profile_games(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:  
+        return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
-
     games = (
         Game.query.filter(
             or_(
@@ -232,27 +256,38 @@ def get_profile_games(profile_id):
         "games": [g.to_dict() for g in games]
     }), 200
 
+
 @game_bp.route("/recalculate_game", methods=["POST"])
 @jwt_or_session_required
 def recalculate_route():
-
     data = request.get_json()
-    if not data or not data.get("game_id"):
-                return jsonify({"error": "game_id is required"}), 400
-    
+    if not data or not data.get("game_id") or "tie" not in data:
+        return jsonify({"error": "game_id is required"}), 400
+
     game_id = data["game_id"]
     tie = data["tie"]
 
+    game = Game.query.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
 
-    return recalculate(game_id,tie)
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
+
+    return recalculate(game_id, tie)
+
 
 @game_bp.route("/game/<int:game_id>", methods=["GET"])
-@jwt_required()
+@jwt_or_session_required
 def get_game(game_id):
     game = Game.query.get(game_id)
 
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
-    return jsonify(game.to_dict()), 200
+    current_id = current_identity()
+    if current_id is None or not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
+    return jsonify(game.to_dict()), 200

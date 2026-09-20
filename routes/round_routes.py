@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, socketio
 from logic.profileLogic import Profile
 from logic.roundLogic import Round
 from logic.gameLogic import Game, recalculate
+from routes.game_routes import is_game_participant
 import random
 
 
@@ -20,6 +21,10 @@ def add_round():
     game = Game.query.get(data["game_id"])
     if not game:
         return jsonify({"error": "Game not found"}), 404
+
+    current_id = int(get_jwt_identity())
+    if not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
     round_obj = Round(
         game_id=data["game_id"],
@@ -265,6 +270,9 @@ def add_round():
 def edit_round(round_id):
     round_obj = Round.query.get(round_id)
     game = round_obj.game
+    current_id = int(get_jwt_identity())
+    if not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
     if not round_obj:
         return jsonify({"error": "Round not found"}), 404
@@ -506,13 +514,14 @@ def delete_round(round_id):
         return jsonify({"error": "Round not found"}), 404
 
     game = round_obj.game
+    current_id = int(get_jwt_identity())
+    if not is_game_participant(game, current_id):
+        return jsonify({"error": "forbidden"}), 403
 
     db.session.delete(round_obj)
     db.session.flush()
 
     recalculate(game.id)
-    #game.current_points_team1 = sum(r.round_points_team1 for r in game.rounds)
-    #game.current_points_team2 = sum(r.round_points_team2 for r in game.rounds)
 
     db.session.commit()
 
