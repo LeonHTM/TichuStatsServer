@@ -118,30 +118,36 @@ def update_profile_settings(profile_id):
 
     return jsonify(settings.to_dict()), 200
 
+#Day: 14 Entries: 14 Days -> 2 Weeks
+#Week: 13 Entries: 2 per Week -> 6 Weeks / 1.5 Months
+#Month: 13 Entries 2 Per Month -> 6 Months
+#Year: 13 Entries: 4 times per Year : 3 Years
+#Alltime: 13 Entries: 4 times per Year : 3 Years
 
 
 def latest_stats_per_day(profile_id, timeframe, limit=MAX_HISTORY_ENTRIES):
     # Newest first, so the first entry we see for each date is the latest one
-    rows = (
-        ProfileStats.query
-        .filter_by(profile_id=profile_id, timeframe=timeframe)
-        .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
-        .all()
-    )
+    if timeframe == "day" or timeframe == "month": 
+        rows = (
+            ProfileStats.query
+            .filter_by(profile_id=profile_id, timeframe=timeframe)
+            .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
+            .all()
+        )
 
-    seen_days = set()
-    picked = []
-    for s in rows:
-        day = s.calculated_at.date()
-        if day in seen_days:
-            continue
-        seen_days.add(day)
-        picked.append(s)
-        if len(picked) >= limit:
-            break
+        seen_days = set()
+        picked = []
+        for s in rows:
+            day = s.calculated_at.date()
+            if day in seen_days:
+                continue
+            seen_days.add(day)
+            picked.append(s)
+            if len(picked) >= limit:
+                break
 
-    picked.reverse()
-    return picked
+        picked.reverse()
+        return picked
 
 
 @profile_bp.route("/profilestats/history", methods=["POST"])
