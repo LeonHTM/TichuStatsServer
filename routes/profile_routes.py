@@ -4,7 +4,7 @@ from extensions import db, socketio
 from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
-from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN
+from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN, MAX_HISTORY_ENTRIES, TIMEFRAMES
 import os
 from routes.auth_routes import jwt_or_session_required, app_token_required, current_identity
 from logic.gameLogic import EloHistory, handle_user_deleted
@@ -22,6 +22,11 @@ def allowed_file(filename):
 @jwt_or_session_required
 def get_profiles():
     if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
+        current_id = current_identity()
+        caller = Profile.query.get(current_id) if current_id is not None else None
+        if not caller or not caller.is_admin:
+            return render_template("error.html"), 403
+
         from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
         for profile in profiles:
@@ -115,6 +120,30 @@ def update_profile_settings(profile_id):
 
 
 
+def latest_stats_per_day(profile_id, timeframe, limit=MAX_HISTORY_ENTRIES):
+    # Newest first, so the first entry we see for each date is the latest one
+    rows = (
+        ProfileStats.query
+        .filter_by(profile_id=profile_id, timeframe=timeframe)
+        .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
+        .all()
+    )
+
+    seen_days = set()
+    picked = []
+    for s in rows:
+        day = s.calculated_at.date()
+        if day in seen_days:
+            continue
+        seen_days.add(day)
+        picked.append(s)
+        if len(picked) >= limit:
+            break
+
+    picked.reverse()
+    return picked
+
+
 @profile_bp.route("/profilestats/history", methods=["POST"])
 @jwt_or_session_required
 def profilestatshistory():
@@ -133,18 +162,9 @@ def profilestatshistory():
 
     stat = data.get("stat")  # currently unused
 
-    stats_day_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="day").order_by(ProfileStats.id.asc()).all()
-    stats_week_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="week").order_by(ProfileStats.id.asc()).all()
-    stats_month_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="month").order_by(ProfileStats.id.asc()).all()
-    stats_year_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="year").order_by(ProfileStats.id.asc()).all()
-    stats_all_time_history = ProfileStats.query.filter_by(profile_id=profile_id, timeframe="all_time").order_by(ProfileStats.id.asc()).all()
-
     result = {
-        "day": [s.to_dict() for s in stats_day_history],
-        "week": [s.to_dict() for s in stats_week_history],
-        "month": [s.to_dict() for s in stats_month_history],
-        "year": [s.to_dict() for s in stats_year_history],
-        "all_time": [s.to_dict() for s in stats_all_time_history],
+        tf: [s.to_dict() for s in latest_stats_per_day(profile_id, tf)]
+        for tf in TIMEFRAMES
     }
     return jsonify(result)
 
@@ -229,6 +249,11 @@ def create_profile():
 @profile_bp.route("/dashboard/update_profile/<profile_id>", methods=["POST"])
 @jwt_or_session_required
 def dashboard_update_profile(profile_id):
+    current_id = current_identity()
+    caller = Profile.query.get(current_id) if current_id is not None else None
+    if not caller or not caller.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+
     try:
         profile_id = int(profile_id)
     except (TypeError, ValueError):

@@ -43,6 +43,7 @@ class Profile(db.Model):
             "profile_image_url": self.profile_image_url,
             "elo": self.elo,
             "is_admin": self.is_admin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     def to_dict_stats(self, timeframe="all_time"):
@@ -236,8 +237,8 @@ def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
     all_games = games_query.all()
     finished_games = [g for g in all_games if g.winner is not None]
     #Also considers the Rounds of the Game you are in rn change ot finished_games if you want to take finsihed games
-    game_ids = [g.id for g in all_games]
-    game_map = {g.id: g for g in all_games}
+    game_ids = [g.id for g in finished_games]
+    game_map = {g.id: g for g in finished_games}
 
     #Get all the Rounds of all the gammes
     rounds_query = Round.query.filter(
