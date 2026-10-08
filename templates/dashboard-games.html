@@ -12,7 +12,7 @@
 <body>
 
 <nav>
-  <a href="/dashboard/games" class="nav-title">Tichu Dashboard</a>
+  <a href="/dashboard/games" class="nav-title">TichuStats Dashboard</a>
   <a href="/dashboard/profiles" class="nav-link {% if request.path == '/dashboard/profiles' %}active{% endif %}">Profiles</a>
   <a href="/dashboard/games"    class="nav-link {% if request.path == '/dashboard/games'    %}active{% endif %}">Games</a>
   <div class="nav-profile-wrap">
@@ -126,7 +126,7 @@
 
         <td class="td-team">
           <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{{ g.team1_p1 }}</span>
-          <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{% if g.team1_p2_id < 0 %}{{ g.guest2_name }}{% else %}{{ g.team1_p2 }}{% endif %}</span>
+          <span class="player-name {% if g.winner == 1 %}winner{% endif %}">{% if g.team1_p2_id < 0 %}{{ g.guest2_name }} (Gst){% else %}{{ g.team1_p2 }}{% endif %}</span>
         </td>
 
         <td class="td-score">
@@ -136,8 +136,8 @@
         </td>
 
         <td class="td-team">
-          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p1_id < 0 %}{{ g.guest3_name }}{% else %}{{ g.team2_p1 }}{% endif %}</span>
-          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p2_id < 0 %}{{ g.guest4_name }}{% else %}{{ g.team2_p2 }}{% endif %}</span>
+          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p1_id < 0 %}{{ g.guest3_name }} (Gst){% else %}{{ g.team2_p1 }}{% endif %}</span>
+          <span class="player-name {% if g.winner == 2 %}winner{% endif %}">{% if g.team2_p2_id < 0 %}{{ g.guest4_name }} (Gst){% else %}{{ g.team2_p2 }}{% endif %}</span>
         </td>
 
         <td class="td-score">

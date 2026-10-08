@@ -54,6 +54,19 @@ def current_identity():
             return None
     return None
 
+def is_dashboard_session():
+    # Set only after the dashboard password was entered (/dashlogin)
+    return bool(session.get("jwt"))
+
+def caller_is_admin():
+    if is_dashboard_session():
+        return True
+    current_id = current_identity()
+    if current_id is None:
+        return False
+    caller = Profile.query.get(current_id)
+    return bool(caller and caller.is_admin)
+
 
 @auth_bp.route("/login/request-code/<email>", methods=["POST"])
 @app_token_required

@@ -166,6 +166,7 @@ import time
 #Calculate Stats for user and given Timeframe
 def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
     from logic.gameLogic import Game
+    from logic.gameLogic import EloHistory 
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
 
@@ -256,6 +257,17 @@ def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
         rounds_query = rounds_query.filter(Round.date >= timeframe_delta)
 
     all_rounds = rounds_query.all()
+
+
+
+    #elo 
+    if timeframe == "all_time":
+        total_change = db.session.query(
+            db.func.coalesce(db.func.sum(EloHistory.elo_change), 0.0)
+        ).filter(EloHistory.profile_id == uid).scalar()
+        user.elo = round(1000.0 + float(total_change), round_to)
+
+    
 
     #Addict number of (finsihed) Games played
     addict = len(finished_games)
@@ -364,7 +376,7 @@ def calculateStats(user_id, timeframe="all_time", timezone_str="UTC"):
             print("error id not in team found")
             return 0
 
-    #Avearge Placements
+    #Climber
     counter = 0
     #Dont use round becasue python will confuse wiht round() funciton
     total_placement = 0

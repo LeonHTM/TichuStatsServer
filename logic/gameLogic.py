@@ -118,24 +118,17 @@ def recalculate(game_id,tie=False):
         reached_target = False
 
         for round in rounds:
-            game.current_points_team1 = game.current_points_team1 + round.round_points_team1 + round.tichu_points_team1
-            game.current_points_team2 = game.current_points_team2 + round.round_points_team2 + round.tichu_points_team2
+            if reached_target:
+                round.bool_win_round = False
+                continue
 
-            if not win_condition(game.current_points_team1, game.current_points_team2,game.target):
-                round.bool_win_round = True
-            else:
-                if reached_target == False:
-                    reached_target = True
-                    round.bool_win_round = True
-                    #When players choose tie the taget gets set to the poitns of the team with mroe poitns so
-                    if game.current_points_team1 > game.current_points_team2:
-                        game.winner = 1
-                    elif game.current_points_team2 > game.current_points_team1:
-                        game.winner = 2
-                else:
-                    round.bool_win_round = False
-                    game.current_points_team1 = game.current_points_team1 - round.round_points_team1 - round.tichu_points_team1
-                    game.current_points_team2 = game.current_points_team2 - round.round_points_team2 - round.tichu_points_team2
+            game.current_points_team1 += round.round_points_team1 + round.tichu_points_team1
+            game.current_points_team2 += round.round_points_team2 + round.tichu_points_team2
+            round.bool_win_round = True
+
+            if win_condition(game.current_points_team1, game.current_points_team2, game.target):
+                reached_target = True
+                game.winner = 1 if game.current_points_team1 > game.current_points_team2 else 2
         
 
     playerIds = [game.team1_player1_id, game.team1_player2_id, game.team2_player1_id, game.team2_player2_id] 

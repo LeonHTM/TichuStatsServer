@@ -1,14 +1,17 @@
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+import os
+
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, render_template, session
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from werkzeug.utils import secure_filename
+
 from extensions import db, socketio
 from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats
-from werkzeug.utils import secure_filename
-from datetime import datetime, timezone
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN, MAX_HISTORY_ENTRIES, TIMEFRAMES
-import os
-from routes.auth_routes import jwt_or_session_required, app_token_required, current_identity
+from routes.auth_routes import jwt_or_session_required, app_token_required, current_identity, caller_is_admin, is_dashboard_session
 from logic.gameLogic import EloHistory, handle_user_deleted
-from datetime import datetime, timedelta
 
 
 profile_bp = Blueprint("profile", __name__)
@@ -17,17 +20,13 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-
 @profile_bp.route("/profiles", methods=["GET"])
 @jwt_or_session_required
 def get_profiles():
     if request.accept_mimetypes.accept_html and not request.accept_mimetypes.accept_json:
-        current_id = current_identity()
-        caller = Profile.query.get(current_id) if current_id is not None else None
-        if not caller or not caller.is_admin:
+        if not caller_is_admin():
             return render_template("error.html"), 403
 
-        from logic.profileLogic import ProfileStats
         profiles = Profile.query.all()
         for profile in profiles:
             profile.all_time_stats = ProfileStats.query.filter_by(
@@ -74,6 +73,20 @@ def get_profile_settings(profile_id):
     return jsonify(settings.to_dict()), 200
 
 
+# request key -> candidate model attribute names (first one that exists on the model wins).
+# The old code used "show_all_players" / "sort_by_profile", which did not match the GET
+# defaults ("show_all_profiles" / "sort_by_profiles"), so some updates were silently lost.
+SETTINGS_FIELDS = {
+    "default_target":    ("default_target",),
+    "show_pingu":        ("show_pingu",),
+    "drag_mode":         ("drag_mode",),
+    "show_all_profiles": ("show_all_profiles", "show_all_players"),
+    "show_all_players":  ("show_all_profiles", "show_all_players"),  # legacy client key
+    "sort_by_profiles":  ("sort_by_profiles", "sort_by_profile"),
+    "sort_by_stats":     ("sort_by_stats",),
+}
+
+
 @profile_bp.route("/profile/<int:profile_id>/settings", methods=["PATCH"])
 @jwt_or_session_required
 def update_profile_settings(profile_id):
@@ -85,7 +98,6 @@ def update_profile_settings(profile_id):
         return jsonify({"error": "Profile not found"}), 404
 
     data = request.get_json()
-    #print(f"update_profile_settings: profile_id={profile_id}, data={data}")
 
     if not data:
         return jsonify({"error": "No data provided"}), 400
@@ -96,19 +108,15 @@ def update_profile_settings(profile_id):
         settings = ProfileSettings(user_id=profile_id)
         db.session.add(settings)
 
-    if "default_target" in data:
-        settings.default_target = data["default_target"]
-    if "show_pingu" in data:
-        settings.show_pingu = data["show_pingu"]
-    if "drag_mode" in data:
-        settings.drag_mode = data["drag_mode"]
-    if "show_all_players" in data:
-        settings.show_all_players = data["show_all_players"]
-    if "sort_by_profiles" in data:
-        settings.sort_by_profile = data["sort_by_profiles"]
-    if "sort_by_stats" in data:
-        settings.sort_by_stats = data["sort_by_stats"]
-    
+    for key, candidates in SETTINGS_FIELDS.items():
+        if key not in data:
+            continue
+        attr = next((a for a in candidates if hasattr(ProfileSettings, a)), None)
+        if attr is None:
+            current_app.logger.warning("ProfileSettings has no column for %r (tried %s)", key, candidates)
+            continue
+        setattr(settings, attr, data[key])
+
     try:
         db.session.commit()
         socketio.emit("settings_updated", {"id": profile_id})
@@ -125,30 +133,70 @@ def update_profile_settings(profile_id):
 #Alltime: 13 Entries: 4 times per Year : 3 Years
 
 
-def latest_stats_per_day(profile_id, timeframe, limit=MAX_HISTORY_ENTRIES):
-    # Newest first, so the first entry we see for each date is the latest one
-    if timeframe == "day" or timeframe == "month": 
-        rows = (
-            ProfileStats.query
-            .filter_by(profile_id=profile_id, timeframe=timeframe)
-            .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
-            .all()
-        )
 
-        seen_days = set()
-        picked = []
-        for s in rows:
-            day = s.calculated_at.date()
-            if day in seen_days:
-                continue
-            seen_days.add(day)
-            picked.append(s)
-            if len(picked) >= limit:
-                break
+#All the timeframe sedning entries is made by AI 
+_YEAR = {"max_entries": 13, "per_period": 4, "period": lambda dt: dt.year}
 
-        picked.reverse()
-        return picked
+_HISTORY_CONFIG = {
+    "day":   {"max_entries": 14, "per_period": 1, "period": lambda dt: dt.date()},
+    "week":  {"max_entries": 13, "per_period": 2,
+              "period": lambda dt: tuple(dt.isocalendar())[:2]},  # (iso_year, iso_week)
+    "month": {"max_entries": 13, "per_period": 2,
+              "period": lambda dt: (dt.year, dt.month)},
+    "year": _YEAR,
+    "all_time": _YEAR,
+}
 
+
+def latest_stats_per_period(profile_id, timeframe, limit=MAX_HISTORY_ENTRIES):
+    settings = _HISTORY_CONFIG.get(timeframe)
+    if settings is None:
+        raise ValueError(f"Unknown timeframe: {timeframe}")
+
+    max_entries = min(limit, settings["max_entries"])
+    if max_entries <= 0:
+        return []
+
+    query = (
+        ProfileStats.query
+        .filter_by(profile_id=profile_id, timeframe=timeframe)
+        .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
+    )
+
+    # year / all_time: at most one snapshot per calendar day and NO backfill,
+    # so they only ever show what the per-period cap allows.
+    # day / week / month never touch this: their code path below is unchanged.
+    sparse_mode = timeframe in ("year", "all_time")
+    used_days = set()
+
+    counts = defaultdict(int)
+    picked, skipped = [], []
+
+    for stat in query.yield_per(100):
+        if stat.calculated_at is None:
+            continue
+        if sparse_mode and stat.calculated_at.date() in used_days:
+            continue  # same-day duplicate
+        period = settings["period"](stat.calculated_at)
+        if counts[period] >= settings["per_period"]:
+            skipped.append(stat)
+            continue
+        counts[period] += 1
+        picked.append(stat)
+        if sparse_mode:
+            used_days.add(stat.calculated_at.date())
+        if len(picked) >= max_entries:
+            break
+    else:
+        # Ran out of rows before filling the window (sparse data):
+        # backfill with the newest rows that the per-period cap skipped.
+        # (Not done for year / all_time.)
+        if not sparse_mode:
+            picked.extend(skipped[: max_entries - len(picked)])
+
+    # Chronological order for charts.
+    picked.sort(key=lambda s: (s.calculated_at, s.id))
+    return picked
 
 @profile_bp.route("/profilestats/history", methods=["POST"])
 @jwt_or_session_required
@@ -161,21 +209,25 @@ def profilestatshistory():
     if "profile_id" not in data:
         return jsonify({"error": "profile_id is required"}), 400
 
-    profile_id = data["profile_id"]
+    try:
+        profile_id = int(data["profile_id"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid profile_id"}), 400
 
-    if current_id is None or current_id != profile_id:
+    if current_id is None or int(current_id) != profile_id:
         return jsonify({"error": "forbidden"}), 403
 
     stat = data.get("stat")  # currently unused
 
-    result = {
-        tf: [s.to_dict() for s in latest_stats_per_day(profile_id, tf)]
-        for tf in TIMEFRAMES
-    }
+    try:
+        result = {
+            tf: [s.to_dict() for s in latest_stats_per_period(profile_id, tf)]
+            for tf in TIMEFRAMES
+        }
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
     return jsonify(result)
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 @profile_bp.route("/profilesstats/<int:profile_id>", methods=["GET"])
 @jwt_or_session_required
@@ -188,27 +240,31 @@ def get_profilesstats(profile_id):
     timezone_str = request.args.get("timezone", "UTC")
 
     try:
-        ZoneInfo(timezone_str)  # validate it's a real IANA name
+        ZoneInfo(timezone_str)  
     except Exception:
         return jsonify({"error": f"Invalid timezone: {timezone_str}"}), 400
 
-    now = datetime.utcnow()
-    existing = ProfileStats.query.filter_by(
-                                profile_id=profile.id, timeframe=timeframe).order_by(ProfileStats.id.desc()).first()
-    #Limit recalcalution Window to 5 Min at most or when a round gets recalculated
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    existing = (
+        ProfileStats.query
+        .filter_by(profile_id=profile.id, timeframe="all_time")
+        .order_by(ProfileStats.id.desc())
+        .first()
+    )
+    # Limit: 5 Min or new round
     already_calculated_recently = (
         existing is not None
         and existing.calculated_at is not None
         and (now - existing.calculated_at) < timedelta(minutes=5)
     )
-    #already_calculated_recently = False
 
     if not already_calculated_recently:
         for tf in ("all_time", "year", "month", "week", "day"):
             print(f"Recalculating Stats: {tf}")
             calculateStats(profile_id, timeframe=tf, timezone_str=timezone_str)
     else:
-        print("dont need to calcaulte already have recent")
+        print("don't need to calculate, already have recent")
     return jsonify(profile.to_dict_stats(timeframe=timeframe))
 
 
@@ -255,16 +311,14 @@ def create_profile():
 @profile_bp.route("/dashboard/update_profile/<profile_id>", methods=["POST"])
 @jwt_or_session_required
 def dashboard_update_profile(profile_id):
-    current_id = current_identity()
-    caller = Profile.query.get(current_id) if current_id is not None else None
-    if not caller or not caller.is_admin:
+    if not caller_is_admin():
         return jsonify({"error": "forbidden"}), 403
 
     try:
         profile_id = int(profile_id)
     except (TypeError, ValueError):
         return jsonify({"error": "Invalid profile ID"}), 400
-    
+
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
@@ -309,7 +363,7 @@ def dashboard_update_profile(profile_id):
 @jwt_or_session_required
 def delete_profile(profile_id):
     current_id = current_identity()
-    if current_id is None or current_id != profile_id:
+    if not (is_dashboard_session() or caller_is_admin() or current_id == profile_id):
         return jsonify({"error": "forbidden"}), 403
     error, status = handle_user_deleted(profile_id)
     if status != 200:
@@ -336,13 +390,13 @@ def check_username(username):
 @jwt_required()
 def update_username(profile_id):
     current_id = int(get_jwt_identity())
-    if current_id != profile_id:  
+    if current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get("name")
     if not name:
         return jsonify({"error": "Name is required"}), 400
@@ -364,7 +418,7 @@ def check_email(email):
 @jwt_required()
 def upload_profile_image(profile_id):
     current_id = int(get_jwt_identity())
-    if current_id != profile_id:  
+    if current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -397,7 +451,7 @@ def serve_image(filename):
 @jwt_required()
 def logout(profile_id):
     current_id = int(get_jwt_identity())
-    if current_id != profile_id:  
+    if current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
@@ -422,13 +476,13 @@ def logout(profile_id):
 @jwt_required()
 def register_device(profile_id):
     current_id = int(get_jwt_identity())
-    if current_id != profile_id:  
+    if current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
     profile = Profile.query.get(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json() or {}
     device_token = data.get("device_token")
     if not device_token:
         return jsonify({"error": "device_token is required"}), 400
@@ -474,7 +528,6 @@ def get_elo_history(profile_id):
     current_id = current_identity()
     if current_id is None or current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
-    from logic.gameLogic import EloHistory
 
     history = (
         EloHistory.query

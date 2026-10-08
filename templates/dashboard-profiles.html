@@ -11,7 +11,7 @@
 <body>
 
   <nav>
-    <a href="/dashboard/games" class="nav-title">Tichu Dashboard</a>
+    <a href="/dashboard/games" class="nav-title">TichuStats Dashboard</a>
     <a href="/dashboard/profiles" class="nav-link {% if request.path == '/dashboard/profiles' %}active{% endif %}">Profiles</a>
     <a href="/dashboard/games" class="nav-link {% if request.path == '/dashboard/games' %}active{% endif %}">Games</a>
 
@@ -120,6 +120,8 @@
         <button class="sort-btn" onclick="sortCards('elo', 'asc', this)">ELO ↓</button>
         <button class="sort-btn" onclick="sortCards('date', 'desc', this)">Newest</button>
         <button class="sort-btn" onclick="sortCards('date', 'asc', this)">Oldest</button>
+        <button class="sort-btn" onclick="sortCards('admin', 'desc', this)">Admin</button> 
+        <button class="sort-btn" onclick="sortCards('id', 'asc', this)">Guest</button>
       </div>
       <div class="search-wrapper">
         <svg class="search-icon" viewBox="0 0 19.4434 19.2676" xmlns="http://www.w3.org/2000/svg">
@@ -159,7 +161,7 @@
 
             <div class="profile-name">{{ profile.name or 'Unnamed' }}</div>
             <div class="profile-email">
-              {{ profile.email }} · ID {{ profile.id }}
+              {{ profile.email or "Passkey"}} · ID {{ profile.id }}
               {% if profile.is_admin %}
                 · <span class="admin-inline">Admin</span>
               {% endif %}
@@ -401,6 +403,7 @@
         else if (key === 'name') { valA = a.dataset.name.toLowerCase(); valB = b.dataset.name.toLowerCase(); }
         else if (key === 'elo') { valA = parseInt(a.dataset.elo); valB = parseInt(b.dataset.elo); }
         else if (key === 'date') { valA = a.dataset.date ? new Date(a.dataset.date) : new Date(0); valB = b.dataset.date ? new Date(b.dataset.date) : new Date(0); }
+        else if (key === 'admin') { valA = a.dataset.isAdmin === 'true' ? 1 : 0; valB = b.dataset.isAdmin === 'true' ? 1 : 0; }
         if (valA < valB) return dir === 'asc' ? -1 : 1;
         if (valA > valB) return dir === 'asc' ? 1 : -1;
         return 0;

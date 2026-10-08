@@ -4,7 +4,7 @@ from extensions import db, socketio
 from logic.profileLogic import Profile, calculateStats
 from logic.gameLogic import Game, recalculate, EloHistory, finish_game
 from logic.roundLogic import Round
-from routes.auth_routes import jwt_or_session_required, current_identity
+from routes.auth_routes import jwt_or_session_required, current_identity, caller_is_admin
 from sqlalchemy import or_
 
 game_bp = Blueprint("game", __name__)
@@ -14,6 +14,13 @@ def is_game_participant(game, profile_id):
         game.team1_player1_id, game.team1_player2_id,
         game.team2_player1_id, game.team2_player2_id,
     }
+
+def can_access_game(game):
+    # dashboard session or admin profile, otherwise must be a participant
+    if caller_is_admin():
+        return True
+    current_id = current_identity()
+    return current_id is not None and is_game_participant(game, current_id)
 
 
 @game_bp.route("/add_game", methods=["POST"])
@@ -84,8 +91,7 @@ def edit_target_route():
         print("Game not found")
         return jsonify({"error": "Game not found"}), 404
 
-    current_id = current_identity()
-    if current_id is None or not is_game_participant(game, current_id):
+    if not can_access_game(game):
         return jsonify({"error": "forbidden"}), 403
 
     game.target = updated_target
@@ -181,8 +187,7 @@ def delete_game(game_id):
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
-    current_id = current_identity()
-    if current_id is None or not is_game_participant(game, current_id):
+    if not can_access_game(game):
         return jsonify({"error": "forbidden"}), 403
 
     player_ids = [game.team1_player1_id, game.team1_player2_id,
@@ -271,9 +276,8 @@ def recalculate_route():
     if not game:
         return jsonify({"error": "Game not found"}), 404
 
-    current_id = current_identity()
-    if current_id is None or not is_game_participant(game, current_id):
-        return jsonify({"error": "forbidden"}), 403
+    if not can_access_game(game):
+            return jsonify({"error": "forbidden"}), 403
 
     return recalculate(game_id, tie)
 
