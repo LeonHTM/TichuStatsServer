@@ -98,7 +98,7 @@ def edit_target_route():
     recalculate(game_id)
 
     db.session.commit()
-    socketio.emit("game_target_updated", {"game_id": game_id, "target": updated_target})
+    socketio.emit("game_updated", {"game_id": game_id})
     return jsonify({"success": True}), 200
 
 
@@ -135,6 +135,43 @@ def finish_game_route():
     return jsonify({"success": True}), 200
 
 
+
+@game_bp.route("/game/edit_guest_name", methods=["POST"])
+@jwt_required()
+def game_edit_guest_name():
+    current_id = int(get_jwt_identity())
+    
+    data = request.get_json()
+    if not data or not data.get("game_id"):
+        return jsonify({"error": "game_id is required"}), 400
+
+    game_id = data["game_id"]
+    guest_id = data["guest_id"]
+    guest_name = data["guest_name"]
+
+    game = Game.query.get(game_id)
+    if not game:
+            print("Game not found")
+            return jsonify({"error": "Game not found"}), 404
+    if not is_game_participant(game, current_id):
+                return jsonify({"error": "forbidden"}), 403
+
+    if guest_id == -2:
+        game.guest2_name = guest_name
+    elif guest_id == -3:
+        game.guest3_name = guest_name
+    elif guest_id == -4:
+        game.guest4_name = guest_name
+    else:
+        return jsonify({"error": "guest_id not existent value"}), 405
+
+    db.session.commit()
+    socketio.emit("game_updated", {"game_id": game_id})
+    return jsonify({"success": True}), 200
+
+
+
+#currently not in use
 @game_bp.route("/game/edit_player/<int:game_id>", methods=["PATCH"])
 @jwt_required()
 def game_edit_player(game_id):
