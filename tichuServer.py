@@ -224,6 +224,8 @@ def create_app():
     def page_not_found(e):
         return render_template("404.html"), 404
 
+    #Stops jsonfy from sorting json -> Exporting data keeps order spcified
+    app.json.sort_keys = False
     
     return app
     

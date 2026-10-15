@@ -8,10 +8,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 
 from extensions import db, socketio
-from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats
+from logic.profileLogic import Profile, UserDeviceToken, ProfileSettings, calculateStats, ProfileStats, ProfileFriend, FriendRequest
 from config import SESSION_MINUTES, ALLOWED_EXTENSIONS, APP_SECRET_TOKEN, MAX_HISTORY_ENTRIES, TIMEFRAMES
 from routes.auth_routes import jwt_or_session_required, app_token_required, current_identity, caller_is_admin, is_dashboard_session
 from logic.gameLogic import EloHistory, handle_user_deleted
+from logic.gameLogic import Game
+from logic.roundLogic import Round
 
 
 profile_bp = Blueprint("profile", __name__)
@@ -471,6 +473,163 @@ def logout(profile_id):
 
     db.session.commit()
     return jsonify({"success": True}), 200
+
+
+@profile_bp.route("/export/<int:profile_id>", methods=["GET"])
+@jwt_required()
+def export_profile_data(profile_id):
+    current_id = int(get_jwt_identity())
+    if current_id != profile_id:
+        return jsonify({"error": "forbidden"}), 403
+
+    profile = Profile.query.get(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    def iso(d):
+        return d.isoformat() if d else None
+
+    #Profile
+    profile_data = {
+        "id": profile.id,
+        "name": profile.name,
+        "email": profile.email,
+        "email_verified": profile.email_verified,
+        "profile_image_url": profile.profile_image_url,
+        "date_added": iso(profile.date_added),
+        "created_at": iso(profile.created_at),
+        "elo": profile.elo,
+        "is_admin": profile.is_admin,
+    }
+
+    #Settings
+    settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
+    settings_data = settings.to_dict() if settings else None
+
+    #Statistics full history per timeframe maybe in the future user can pick beacasue this blows up the file
+    stats_data = {tf: [] for tf in ("all_time", "year", "month", "week", "day")}
+    all_stats = (
+        ProfileStats.query
+        .filter_by(profile_id=profile_id)
+        .order_by(ProfileStats.calculated_at.asc(), ProfileStats.id.asc())
+        .all()
+    )
+    for s in all_stats:
+        stats_data[s.timeframe].append(s.to_dict())
+
+    #Elo history
+    elo_history = (
+        EloHistory.query
+        .filter_by(profile_id=profile_id)
+        .order_by(EloHistory.changed_at.asc())
+        .all()
+    )
+    elo_history_data = [
+        {
+            "game_id": e.game_id,
+            "elo_change": e.elo_change,
+            "changed_at": iso(e.changed_at),
+        }
+        for e in elo_history
+    ]
+
+    # Games and Rounds
+    games = (
+        Game.query
+        .filter(db.or_(
+            Game.team1_player1_id == profile_id,
+            Game.team1_player2_id == profile_id,
+            Game.team2_player1_id == profile_id,
+            Game.team2_player2_id == profile_id,
+        ))
+        .order_by(Game.date.asc())
+        .all()
+    )
+    game_ids = [g.id for g in games]
+
+    rounds_by_game = {}
+    if game_ids:
+        rounds = (
+            Round.query
+            .filter(Round.game_id.in_(game_ids))
+            .order_by(Round.game_id, Round.round_order)
+            .all()
+        )
+        for r in rounds:
+            rounds_by_game.setdefault(r.game_id, []).append(r.to_dict())
+
+    games_data = []
+    for g in games:
+        d = g.to_dict()
+        d["calculated"] = g.calculated
+        d["rounds"] = rounds_by_game.get(g.id, [])
+        games_data.append(d)
+
+    # Friends and Requests
+    friend_rows = ProfileFriend.query.filter_by(profile_id=profile_id).all()
+    requests_sent = FriendRequest.query.filter_by(sender_id=profile_id).all()
+    requests_received = FriendRequest.query.filter_by(receiver_id=profile_id).all()
+
+    # Names of other people
+    other_ids = {f.friend_id for f in friend_rows}
+    other_ids |= {r.receiver_id for r in requests_sent}
+    other_ids |= {r.sender_id for r in requests_received}
+    for g in games:
+        other_ids.update([
+            g.team1_player1_id, g.team1_player2_id,
+            g.team2_player1_id, g.team2_player2_id,
+        ])
+    other_ids = {i for i in other_ids if i is not None and i > 0 and i != profile_id}
+
+    names = {}
+    if other_ids:
+        names = {
+            p.id: p.name
+            for p in Profile.query.filter(Profile.id.in_(other_ids)).all()
+        }
+
+    friends_data = [
+        {
+            "friend_id": f.friend_id,
+            "friend_name": names.get(f.friend_id),
+            "created_at": iso(f.created_at),
+        }
+        for f in friend_rows
+    ]
+
+    requests_data = {
+        "sent": [
+            {
+                "receiver_id": r.receiver_id,
+                "receiver_name": names.get(r.receiver_id),
+                "status": r.status,
+                "created_at": iso(r.created_at),
+            }
+            for r in requests_sent
+        ],
+        "received": [
+            {
+                "sender_id": r.sender_id,
+                "sender_name": names.get(r.sender_id),
+                "status": r.status,
+                "created_at": iso(r.created_at),
+            }
+            for r in requests_received
+        ],
+    }
+
+    return jsonify({
+        "exported_at": datetime.utcnow().isoformat(),
+        "profile": profile_data,
+        "settings": settings_data,
+        "friends": friends_data,
+        "friend_requests": requests_data,
+        "players": {str(i): n for i, n in names.items()}, 
+        "games": games_data,
+        "elo_history": elo_history_data,
+        "statistics": stats_data,
+    }), 200
+
 
 @profile_bp.route("/register_device/<int:profile_id>", methods=["POST"])
 @jwt_required()
