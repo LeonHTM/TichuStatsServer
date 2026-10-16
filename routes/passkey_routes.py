@@ -157,7 +157,7 @@ def register_verify():
 
     transports = credential.get("transports")
 
-    profile = Profile(email=None, name=name, date_added=datetime.utcnow())
+    profile = Profile(email=None, name=name)
     db.session.add(profile)
     db.session.flush()  # need profile.id before commit
 
@@ -179,9 +179,8 @@ def register_verify():
     return jsonify({"token": token, "id": profile.id})
 
 
-# Add a passkey to an already logged-in account (e.g. one made by email).
-# Real user JWT, not the app token — this is a settings action. Existing
-# credentials get excluded so the same authenticator can't register twice.
+# Add a passkey to an already logged in account 
+#Existing credentials get excluded so the same authenticator cant register twice.
 @passkey_bp.post("/add/options")
 @jwt_required()
 def add_options():

@@ -68,17 +68,20 @@ def caller_is_admin():
     return bool(caller and caller.is_admin)
 
 
-@auth_bp.route("/login/request-code/<email>", methods=["POST"])
+@auth_bp.route("/login/request-code", methods=["POST"])
 @app_token_required
-def request_login_code(email):
+def request_login_code():
+    data = request.get_json()
+    if not data:
+            return jsonify({"error": "No data provided"}), 400
+    email = data["email"]
+    language_code = data["language_code"]
     email = email.strip().lower()
-
     if not email:
         return jsonify({"error": "Email required"}), 400
 
-    # Works for both existing profiles (login) and new emails (sign up) —
-    # a code is sent either way to verify ownership of the email.
-    generate_and_send_code(email)
+
+    generate_and_send_code(email,language_code)
 
     return jsonify({"message": "Code sent."}), 200
 

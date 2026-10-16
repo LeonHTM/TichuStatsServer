@@ -475,161 +475,211 @@ def logout(profile_id):
     return jsonify({"success": True}), 200
 
 
-@profile_bp.route("/export/<int:profile_id>", methods=["GET"])
+from datetime import datetime, timezone  # make sure this import is at the top of the file
+
+
+@profile_bp.route("/export", methods=["POST"])
 @jwt_required()
-def export_profile_data(profile_id):
+def export_profile_data():
     current_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+
+    try:
+        profile_id = int(data.get("profile_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Profile_id is required"}), 400
+
     if current_id != profile_id:
         return jsonify({"error": "forbidden"}), 403
 
-    profile = Profile.query.get(profile_id)
+    profile = db.session.get(Profile, profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
+
+    export_profile = data.get("export_profile", False)
+    export_settings = data.get("export_settings", False)
+    export_friends = data.get("export_friends", False)
+    export_games = data.get("export_games", False)
+    export_elo_history = data.get("export_elo_history", False)
+    export_stats_history = data.get("export_stats_history", False)
+    full_stats_history = data.get("full_stats_history", False)
 
     def iso(d):
         return d.isoformat() if d else None
 
-    #Profile
-    profile_data = {
-        "id": profile.id,
-        "name": profile.name,
-        "email": profile.email,
-        "email_verified": profile.email_verified,
-        "profile_image_url": profile.profile_image_url,
-        "date_added": iso(profile.date_added),
-        "created_at": iso(profile.created_at),
-        "elo": profile.elo,
-        "is_admin": profile.is_admin,
-    }
+    # Defaults so the response can always be built
+    profile_data = None
+    settings_data = None
+    stats_data = None
+    elo_history_data = None
+    games_data = None
+    friends_data = None
+    requests_data = None
+    games = []
+    friend_rows = []
+    requests_sent = []
+    requests_received = []
+    names = {}
 
-    #Settings
-    settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
-    settings_data = settings.to_dict() if settings else None
-
-    #Statistics full history per timeframe maybe in the future user can pick beacasue this blows up the file
-    stats_data = {tf: [] for tf in ("all_time", "year", "month", "week", "day")}
-    all_stats = (
-        ProfileStats.query
-        .filter_by(profile_id=profile_id)
-        .order_by(ProfileStats.calculated_at.asc(), ProfileStats.id.asc())
-        .all()
-    )
-    for s in all_stats:
-        stats_data[s.timeframe].append(s.to_dict())
-
-    #Elo history
-    elo_history = (
-        EloHistory.query
-        .filter_by(profile_id=profile_id)
-        .order_by(EloHistory.changed_at.asc())
-        .all()
-    )
-    elo_history_data = [
-        {
-            "game_id": e.game_id,
-            "elo_change": e.elo_change,
-            "changed_at": iso(e.changed_at),
+    # Profile
+    if export_profile:
+        profile_data = {
+            "id": profile.id,
+            "name": profile.name,
+            #"email": profile.email,
+            #"email_verified": profile.email_verified,
+            #"profile_image_url": profile.profile_image_url,
+            "created_at": iso(profile.created_at),
+            "elo": profile.elo,
+            #"is_admin": profile.is_admin,
         }
-        for e in elo_history
-    ]
 
-    # Games and Rounds
-    games = (
-        Game.query
-        .filter(db.or_(
-            Game.team1_player1_id == profile_id,
-            Game.team1_player2_id == profile_id,
-            Game.team2_player1_id == profile_id,
-            Game.team2_player2_id == profile_id,
-        ))
-        .order_by(Game.date.asc())
-        .all()
-    )
-    game_ids = [g.id for g in games]
+    # Settings
+    if export_settings:
+        settings = ProfileSettings.query.filter_by(user_id=profile_id).first()
+        settings_data = settings.to_dict() if settings else None
 
-    rounds_by_game = {}
-    if game_ids:
-        rounds = (
-            Round.query
-            .filter(Round.game_id.in_(game_ids))
-            .order_by(Round.game_id, Round.round_order)
+    # Statistics: full history per timeframe if the user picks so, otherwise only the most recent entry
+    if export_stats_history:
+        timeframes = ("all_time", "year", "month", "week", "day")
+        stats_data = {tf: [] for tf in timeframes}
+
+        if full_stats_history:
+            all_stats = (
+                ProfileStats.query
+                .filter_by(profile_id=profile_id)
+                .order_by(ProfileStats.calculated_at.asc(), ProfileStats.id.asc())
+                .all()
+            )
+            for s in all_stats:
+                stats_data.setdefault(s.timeframe, []).append(s.to_dict())
+        else:
+            for tf in timeframes:
+                latest = (
+                    ProfileStats.query
+                    .filter_by(profile_id=profile_id, timeframe=tf)
+                    .order_by(ProfileStats.calculated_at.desc(), ProfileStats.id.desc())
+                    .first()
+                )
+                if latest:
+                    stats_data[tf].append(latest.to_dict())
+
+    # Elo history
+    if export_elo_history:
+        elo_history = (
+            EloHistory.query
+            .filter_by(profile_id=profile_id)
+            .order_by(EloHistory.changed_at.asc())
             .all()
         )
-        for r in rounds:
-            rounds_by_game.setdefault(r.game_id, []).append(r.to_dict())
-
-    games_data = []
-    for g in games:
-        d = g.to_dict()
-        d["calculated"] = g.calculated
-        d["rounds"] = rounds_by_game.get(g.id, [])
-        games_data.append(d)
-
-    # Friends and Requests
-    friend_rows = ProfileFriend.query.filter_by(profile_id=profile_id).all()
-    requests_sent = FriendRequest.query.filter_by(sender_id=profile_id).all()
-    requests_received = FriendRequest.query.filter_by(receiver_id=profile_id).all()
-
-    # Names of other people
-    other_ids = {f.friend_id for f in friend_rows}
-    other_ids |= {r.receiver_id for r in requests_sent}
-    other_ids |= {r.sender_id for r in requests_received}
-    for g in games:
-        other_ids.update([
-            g.team1_player1_id, g.team1_player2_id,
-            g.team2_player1_id, g.team2_player2_id,
-        ])
-    other_ids = {i for i in other_ids if i is not None and i > 0 and i != profile_id}
-
-    names = {}
-    if other_ids:
-        names = {
-            p.id: p.name
-            for p in Profile.query.filter(Profile.id.in_(other_ids)).all()
-        }
-
-    friends_data = [
-        {
-            "friend_id": f.friend_id,
-            "friend_name": names.get(f.friend_id),
-            "created_at": iso(f.created_at),
-        }
-        for f in friend_rows
-    ]
-
-    requests_data = {
-        "sent": [
+        elo_history_data = [
             {
-                "receiver_id": r.receiver_id,
-                "receiver_name": names.get(r.receiver_id),
-                "status": r.status,
-                "created_at": iso(r.created_at),
+                "game_id": e.game_id,
+                "elo_change": e.elo_change,
+                "changed_at": iso(e.changed_at),
             }
-            for r in requests_sent
-        ],
-        "received": [
+            for e in elo_history
+        ]
+
+    # Games and Rounds
+    if export_games:
+        games = (
+            Game.query
+            .filter(db.or_(
+                Game.team1_player1_id == profile_id,
+                Game.team1_player2_id == profile_id,
+                Game.team2_player1_id == profile_id,
+                Game.team2_player2_id == profile_id,
+            ))
+            .order_by(Game.date.asc())
+            .all()
+        )
+        game_ids = [g.id for g in games]
+
+        rounds_by_game = {}
+        if game_ids:
+            rounds = (
+                Round.query
+                .filter(Round.game_id.in_(game_ids))
+                .order_by(Round.game_id, Round.round_order)
+                .all()
+            )
+            for r in rounds:
+                rounds_by_game.setdefault(r.game_id, []).append(r.to_dict())
+
+        games_data = []
+        for g in games:
+            d = g.to_dict()
+            d["calculated"] = g.calculated
+            d["rounds"] = rounds_by_game.get(g.id, [])
+            games_data.append(d)
+
+    # Friends and requests
+    if export_friends:
+        friend_rows = ProfileFriend.query.filter_by(profile_id=profile_id).all()
+        requests_sent = FriendRequest.query.filter_by(sender_id=profile_id).all()
+        requests_received = FriendRequest.query.filter_by(receiver_id=profile_id).all()
+
+    # Names of other people (needed for friends and for game players)
+    if export_friends or export_games:
+        other_ids = {f.friend_id for f in friend_rows}
+        other_ids |= {r.receiver_id for r in requests_sent}
+        other_ids |= {r.sender_id for r in requests_received}
+        for g in games:
+            other_ids.update([
+                g.team1_player1_id, g.team1_player2_id,
+                g.team2_player1_id, g.team2_player2_id,
+            ])
+        other_ids = {i for i in other_ids if i is not None and i > 0 and i != profile_id}
+
+        if other_ids:
+            names = {
+                p.id: p.name
+                for p in Profile.query.filter(Profile.id.in_(other_ids)).all()
+            }
+
+    if export_friends:
+        friends_data = [
             {
-                "sender_id": r.sender_id,
-                "sender_name": names.get(r.sender_id),
-                "status": r.status,
-                "created_at": iso(r.created_at),
+                "friend_id": f.friend_id,
+                "friend_name": names.get(f.friend_id),
+                "created_at": iso(f.created_at),
             }
-            for r in requests_received
-        ],
-    }
+            for f in friend_rows
+        ]
+
+        requests_data = {
+            "sent": [
+                {
+                    "receiver_id": r.receiver_id,
+                    "receiver_name": names.get(r.receiver_id),
+                    "status": r.status,
+                    "created_at": iso(r.created_at),
+                }
+                for r in requests_sent
+            ],
+            "received": [
+                {
+                    "sender_id": r.sender_id,
+                    "sender_name": names.get(r.sender_id),
+                    "status": r.status,
+                    "created_at": iso(r.created_at),
+                }
+                for r in requests_received
+            ],
+        }
 
     return jsonify({
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "profile": profile_data,
         "settings": settings_data,
         "friends": friends_data,
         "friend_requests": requests_data,
-        "players": {str(i): n for i, n in names.items()}, 
+        "players": {str(i): n for i, n in names.items()},
         "games": games_data,
         "elo_history": elo_history_data,
         "statistics": stats_data,
     }), 200
-
 
 @profile_bp.route("/register_device/<int:profile_id>", methods=["POST"])
 @jwt_required()

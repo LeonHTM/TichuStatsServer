@@ -16,8 +16,6 @@ class Profile(db.Model):
 
     profile_image_url = db.Column(db.String(500), nullable=True)
 
-    date_added = db.Column(db.DateTime, nullable=True)
-
     elo = db.Column(db.Float, default=1000.0)
 
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
@@ -31,7 +29,6 @@ class Profile(db.Model):
             "id": self.id,
             "name": self.name,
             "profile_image_url": self.profile_image_url,
-            "date_added": self.date_added.isoformat() if self.date_added else None,
             "elo": self.elo,
             "is_admin": self.is_admin,
         }
