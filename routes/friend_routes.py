@@ -211,3 +211,39 @@ def get_requests(profile_id):
         return jsonify({"error": "forbidden"}), 403
     reqs = FriendRequest.query.filter_by(receiver_id=profile_id, status="pending").all()
     return jsonify([{"id": r.id, "sender_id": r.sender_id, "created_at": r.created_at.isoformat()} for r in reqs]), 200
+
+
+@friend_bp.route("/sent_requests/<int:profile_id>", methods=["GET"])
+@jwt_required()
+def get_sent_requests(profile_id):
+    if int(get_jwt_identity()) != profile_id:
+        return jsonify({"error": "forbidden"}), 403
+    reqs = FriendRequest.query.filter_by(sender_id=profile_id, status="pending").all()
+    return jsonify([
+        {"id": r.id, "receiver_id": r.receiver_id,
+         "created_at": r.created_at.isoformat() if r.created_at else None}
+        for r in reqs
+    ]), 200
+
+@friend_bp.route("/remove_request/<int:sender_id>/to/<int:receiver_id>", methods=["DELETE"])
+@jwt_required()
+def cancel_request(sender_id, receiver_id):
+    if int(get_jwt_identity()) != sender_id:
+        return jsonify({"error": "forbidden"}), 403
+    freq = FriendRequest.query.filter_by(
+        sender_id=sender_id, receiver_id=receiver_id, status="pending"
+    ).first()
+    if not freq:
+        return jsonify({"error": "Friend request not found"}), 404
+    try:
+        db.session.delete(freq)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+    socketio.emit("friend_request_updated",
+                  {"sender_id": sender_id, "receiver_id": receiver_id, "status": "cancelled"})
+    socketio.emit("remove_friend_request_notification",
+                  {"user_id": receiver_id, "sender_id": sender_id})
+    return jsonify({"message": "Request cancelled"}), 200
