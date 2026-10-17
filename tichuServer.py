@@ -34,7 +34,7 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
-    socketio.init_app(app, cors_allowed_BASE_URLs="*", async_mode="threading", ping_interval=2, ping_timeout=3)
+    socketio.init_app(app, cors_allowed_BASE_URLs="*", async_mode="threading", ping_interval=2, ping_timeout=10)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
